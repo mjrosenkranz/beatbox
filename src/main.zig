@@ -2,11 +2,15 @@
 const std = @import("std");
 const c = @cImport({
     @cInclude("alsa/asoundlib.h");
-    @cDefine("ALSA_PCM_NEW_HW_PARAMS_API", "1");
+    //@cDefine("ALSA_PCM_NEW_HW_PARAMS_API", "1");
 });
 
+const basef: f64 = 440.0;
+inline fn wav(dt: f64) f64 {
+    return @sin(basef * 2.0 * 3.14159 * dt) * 0.5;
+}
+
 pub fn main() anyerror!void {
-    var loops: i64 = 0;
     var rc: i32 = 0;
     var size: u64 = 0;
     var handle: ?*c.snd_pcm_t = undefined;
@@ -14,6 +18,7 @@ pub fn main() anyerror!void {
     var val: u32 = undefined;
     var dir: i32 = 0;
     var frames: c.snd_pcm_uframes_t = 0;
+    const rate = 44100;
 //    var buffer: *u8 = undefined;
 
     // Open PCM device for playback. */
@@ -38,7 +43,7 @@ pub fn main() anyerror!void {
 
     // Signed 16-bit little-endian format */
     _ = c.snd_pcm_hw_params_set_format(handle, params,
-        c.snd_pcm_format_t.SND_PCM_FORMAT_S16_LE);
+        c.snd_pcm_format_t.SND_PCM_FORMAT_S16_BE);
 
     // Two channels (stereo) */
     _ = c.snd_pcm_hw_params_set_channels(handle, params, 2);
@@ -63,31 +68,26 @@ pub fn main() anyerror!void {
     _ = c.snd_pcm_hw_params_get_period_size(params, &frames,
         &dir);
     std.log.info("period size: {}", .{frames});
-    size = frames * 4; // 2 bytes/sample, 2 channels */
+    size = frames * 2; // 2 bytes/sample, 2 channels */
 
     const alloc = std.heap.page_allocator;
-    var buffer = try alloc.alloc(u8, size);
+    var buffer = try alloc.alloc(i16, size);
     defer alloc.free(buffer);
 
-    // We want to loop for 5 seconds */
-    _ = c.snd_pcm_hw_params_get_period_time(params,
-        &val, &dir);
-    // 5 seconds in microseconds divided by
-    // period time */
-    loops = 5000000 / val;
-    const stdin = std.io.getStdIn();
-    while (loops > 0) {
-        loops-=1;
+    var i: usize = 0;
+
+    var gtime: f64 = 0.0;
+    //var dtime = @intToFloat(f64, ptime) / @intToFloat(f64, frames);
+    var dtime = 1.0 / @intToFloat(f64, rate);
+
+    while (true) {
         // read stdin
-        //rc = read(0, buffer, size);
-        var read = try stdin.read(buffer);
-        if (read == 0) {
-            std.log.err("end of file on input", .{});
-            break;
-        } else if (read != size) {
-            std.log.err("short read: read {} bytes, should have read {}", .{read, buffer.len});
+        while (i < frames) : (i+=1) {
+            var samp = @floatToInt(i16, 255 * std.math.clamp(wav(gtime), -1.0, 1.0));
+            buffer[2*i] = samp;
+            buffer[2*i + 1] = samp;
+            gtime += dtime;
         }
-        
        //var framesw = c.snd_pcm_writei(handle, &buffer, frames);
        var framesw = c.snd_pcm_writei(handle, &buffer[0], frames);
        if (framesw == -c.EPIPE) {

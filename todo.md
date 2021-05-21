@@ -2,6 +2,7 @@
 
 ## Sound api
 - [x] Open alsa for playback
+- [ ] Convert from double to the given type for playback
 - [ ] Set a device with:
 	- sample rate
 	- channels
