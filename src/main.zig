@@ -5,12 +5,15 @@ const c = @cImport({
     //@cDefine("ALSA_PCM_NEW_HW_PARAMS_API", "1");
 });
 
-const basef: f64 = 440.0;
-inline fn wav(dt: f64) f64 {
-    return @sin(basef * 2.0 * 3.14159 * dt) * 0.5;
+const freq: f64 = 440.0;
+inline fn wav(x: f64) f64 {
+    return @sin(2.0 * 3.14159 * freq * x);
 }
 
 pub fn main() anyerror!void {
+    const rate = 44100;
+    const amp = 10000;
+    const seconds = 3;
     var rc: i32 = 0;
     var size: u64 = 0;
     var handle: ?*c.snd_pcm_t = undefined;
@@ -18,8 +21,9 @@ pub fn main() anyerror!void {
     var val: u32 = undefined;
     var dir: i32 = 0;
     var frames: c.snd_pcm_uframes_t = 0;
-    const rate = 44100;
-//    var buffer: *u8 = undefined;
+    var sample: i32 = 0;
+    var y: f64 = 0;
+    var x: f64 = 0;
 
     // Open PCM device for playback. */
     rc = c.snd_pcm_open(&handle, "default",
@@ -43,18 +47,17 @@ pub fn main() anyerror!void {
 
     // Signed 16-bit little-endian format */
     _ = c.snd_pcm_hw_params_set_format(handle, params,
-        c.snd_pcm_format_t.SND_PCM_FORMAT_S16_BE);
+        c.snd_pcm_format_t.SND_PCM_FORMAT_S16_LE);
 
     // Two channels (stereo) */
     _ = c.snd_pcm_hw_params_set_channels(handle, params, 2);
 
     // 44100 bits/second sampling rate (CD quality) */
     val = 44100;
-    _ = c.snd_pcm_hw_params_set_rate_near(handle, params,
-        &val, &dir);
+    _ = c.snd_pcm_hw_params_set_rate_near(handle, params, &val, &dir);
 
     // Set period size to 32 frames. */
-    frames = 32;
+    frames = 4;
     _ = c.snd_pcm_hw_params_set_period_size_near(handle, params, &frames, &dir);
 
     // Write the parameters to the driver */
@@ -64,43 +67,38 @@ pub fn main() anyerror!void {
         return;
     }
 
-    // Use a buffer large enough to hold one period */
-    _ = c.snd_pcm_hw_params_get_period_size(params, &frames,
-        &dir);
-    std.log.info("period size: {}", .{frames});
-    size = frames * 2; // 2 bytes/sample, 2 channels */
-
     const alloc = std.heap.page_allocator;
-    var buffer = try alloc.alloc(i16, size);
+    var buffer = try alloc.alloc(i8, frames * 4);
     defer alloc.free(buffer);
 
-    var i: usize = 0;
+    var i: i32 = 0;
+    var j: usize = 0;
+    while (true) : (i+=1){
+        // Create a sample and convert it back to an integer
+        x = @intToFloat(f64, i) / @intToFloat(f64, rate);
+        y = std.math.sin(2.0 * 3.14159 * freq * x);
+        sample = @floatToInt(i32, amp * y);
 
-    var gtime: f64 = 0.0;
-    //var dtime = @intToFloat(f64, ptime) / @intToFloat(f64, frames);
-    var dtime = 1.0 / @intToFloat(f64, rate);
+        // Store the sample in our buffer using Little Endian format
+        buffer[0 + 4*j] = @truncate(i8, sample & 0xff);
+        buffer[1 + 4*j] = @truncate(i8, (sample & 0xff00) >> 8);
+        buffer[2 + 4*j] = @truncate(i8, sample & 0xff);
+        buffer[3 + 4*j] = @truncate(i8, (sample & 0xff00) >> 8);
 
-    while (true) {
-        // read stdin
-        while (i < frames) : (i+=1) {
-            var samp = @floatToInt(i16, 255 * std.math.clamp(wav(gtime), -1.0, 1.0));
-            buffer[2*i] = samp;
-            buffer[2*i + 1] = samp;
-            gtime += dtime;
+        // If we have a buffer full of samples, write 1 period of 
+        //samples to the sound card
+        j+=1;
+        if(j == frames){
+            j = @intCast(usize, c.snd_pcm_writei(handle, &buffer[0], frames));
+
+            // Check for under runs
+            if (j < 0){
+                c.snd_pcm_prepare(handle);
+            }
+            j = 0;
         }
-       //var framesw = c.snd_pcm_writei(handle, &buffer, frames);
-       var framesw = c.snd_pcm_writei(handle, &buffer[0], frames);
-       if (framesw == -c.EPIPE) {
-           // EPIPE means underrun */
-           std.log.err("underrun occurred", .{});
-           _ = c.snd_pcm_prepare(handle);
-       } else if (framesw < 0) {
-           std.log.err("error from writei: {s}", .{c.snd_strerror(rc)});
-       }  else if (framesw != frames) {
-           std.log.err("short write, write {} frames", .{rc});
-       }
     }
-
+   
     _ = c.snd_pcm_drain(handle);
     _ = c.snd_pcm_close(handle);
 
