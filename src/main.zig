@@ -2,7 +2,7 @@
 const std = @import("std");
 const c = @cImport({
     @cInclude("alsa/asoundlib.h");
-    //@cDefine("ALSA_PCM_NEW_HW_PARAMS_API", "1");
+    @cDefine("ALSA_PCM_NEW_HW_PARAMS_API", "1");
 });
 
 const freq: f64 = 440.0;
@@ -47,7 +47,7 @@ pub fn main() anyerror!void {
 
     // Signed 16-bit little-endian format */
     _ = c.snd_pcm_hw_params_set_format(handle, params,
-        c.snd_pcm_format_t.SND_PCM_FORMAT_S16_LE);
+        c.snd_pcm_format_t.SND_PCM_FORMAT_S16_BE);
 
     // Two channels (stereo) */
     _ = c.snd_pcm_hw_params_set_channels(handle, params, 2);
@@ -79,11 +79,10 @@ pub fn main() anyerror!void {
         y = std.math.sin(2.0 * 3.14159 * freq * x);
         sample = @floatToInt(i32, amp * y);
 
-        // Store the sample in our buffer using Little Endian format
-        buffer[0 + 4*j] = @truncate(i8, sample & 0xff);
-        buffer[1 + 4*j] = @truncate(i8, (sample & 0xff00) >> 8);
-        buffer[2 + 4*j] = @truncate(i8, sample & 0xff);
-        buffer[3 + 4*j] = @truncate(i8, (sample & 0xff00) >> 8);
+        buffer[0 + 4*j] = @truncate(i8, sample >> 8);
+        buffer[1 + 4*j] = @truncate(i8, (sample));
+        buffer[2 + 4*j] = @truncate(i8, sample >> 8);
+        buffer[3 + 4*j] = @truncate(i8, (sample));
 
         // If we have a buffer full of samples, write 1 period of 
         //samples to the sound card
