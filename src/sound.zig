@@ -4,12 +4,6 @@ const c = @cImport({
     @cDefine("ALSA_PCM_NEW_HW_PARAMS_API", "1");
 });
 
-const freq: f64 = 440.0;
-inline fn wav(x: f64) f64 {
-    const y = @sin(2.0 * 3.14159 * freq * x);
-    return y;
-}
-
 const AlsaError = error {
     FailedToOpen,
     FailedToSetHardware,
@@ -24,14 +18,17 @@ pub const Sounder = struct {
     handle: ?*c.snd_pcm_t = null,
     buffer: []i8 = undefined,
     frames: c.snd_pcm_uframes_t = 0,
+    user_fn: ?fn(f64) f64 = null,
 
     const Self = @This();
 
+    // TODO: get settings from struct
     pub fn init() Self {
         return Self{
             .rate = 44100,
             .amp = 10000,
             .channels = 2,
+            .user_fn = dummyfn,
         };
     }
 
@@ -76,10 +73,9 @@ pub const Sounder = struct {
         var y: f64 = 0;
         var x: f64 = 0;
         var sample: i32 = 0;
-
         while (true) : (i+=1){
             x = @intToFloat(f64, i) / @intToFloat(f64, self.rate);
-            y = wav(x);
+            y = self.user_fn.?(x);
             sample = @floatToInt(i32, self.amp * y);
 
             self.buffer[0 + 4*j] = @truncate(i8, sample >> 8);
@@ -110,3 +106,7 @@ pub const Sounder = struct {
     }
 };
 
+
+fn dummyfn(x: f64) f64 {
+    return 0.0;
+}
