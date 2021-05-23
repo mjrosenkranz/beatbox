@@ -3,11 +3,8 @@ const sound = @import("sound.zig");
 
 
 pub fn main() anyerror!void {
-
-    try sound.setup();
-    defer sound.shutdown();
-
-    sound.loop();
-   
+    const ss = try sound.Sounder.init();
+    defer ss.deinit();
+    ss.loop();
     return;
 }
