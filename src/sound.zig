@@ -18,78 +18,59 @@ const AlsaError = error {
 const alloc = std.heap.page_allocator;
 
 pub const Sounder = struct {
-    // TODO: check if we can create something with these settings
-
-    rate: i32,
+    rate: u32,
     amp: f64,
+    channels: u8,
     handle: ?*c.snd_pcm_t = null,
     buffer: []i8 = undefined,
     frames: c.snd_pcm_uframes_t = 0,
 
     const Self = @This();
 
-    pub fn init() !Self {
-        var rate: c_uint = 44100;
-        var handle: ?*c.snd_pcm_t = null;
+    pub fn init() Self {
+        return Self{
+            .rate = 44100,
+            .amp = 10000,
+            .channels = 2,
+        };
+    }
+
+    pub fn setup(self: *Self) !void {
         var params: ?*c.snd_pcm_hw_params_t = null;
-        var buffer: []i8 = undefined;
-        var frames: c.snd_pcm_uframes_t = 0;
         var rc: i32 = 0;
         var dir: i32 = 0;
-
-        // Open PCM device for playback. */
-        if (c.snd_pcm_open(&handle, "default",
-            c._snd_pcm_stream.SND_PCM_STREAM_PLAYBACK, 0) != 0) {
+        if (c.snd_pcm_open(&self.handle, "default",
+                c._snd_pcm_stream.SND_PCM_STREAM_PLAYBACK, 0) != 0) {
             std.log.err("{c}", .{c.snd_strerror(rc)});
             return AlsaError.FailedToOpen;
         }
 
-        // Allocate a hardware parameters object. */
         _ = c.snd_pcm_hw_params_malloc(&params);
 
-        // Fill it in with default values. */
-        _ = c.snd_pcm_hw_params_any(handle, params);
+        _ = c.snd_pcm_hw_params_any(self.handle, params);
 
-        // Set the desired hardware parameters. */
+        _ = c.snd_pcm_hw_params_set_access(self.handle, params, c.snd_pcm_access_t.SND_PCM_ACCESS_RW_INTERLEAVED);
 
-        // Interleaved mode */
-        _ = c.snd_pcm_hw_params_set_access(handle, params,
-            c.snd_pcm_access_t.SND_PCM_ACCESS_RW_INTERLEAVED);
-
-        // Signed 16-bit little-endian format */
-        _ = c.snd_pcm_hw_params_set_format(handle, params,
+        _ = c.snd_pcm_hw_params_set_format(self.handle, params,
             c.snd_pcm_format_t.SND_PCM_FORMAT_S16_BE);
 
-        // Two channels (stereo) */
-        _ = c.snd_pcm_hw_params_set_channels(handle, params, 2);
+        _ = c.snd_pcm_hw_params_set_channels(self.handle, params, self.channels);
 
-        // 44100 bits/second sampling rate (CD quality) */
-        _ = c.snd_pcm_hw_params_set_rate_near(handle, params, &rate, &dir);
+        _ = c.snd_pcm_hw_params_set_rate_near(self.handle, params, &self.rate, &dir);
 
-        // Set period size to 32 frames. */
-        frames = 4;
-        _ = c.snd_pcm_hw_params_set_period_size_near(handle, params, &frames, &dir);
+        self.frames = 4;
+        _ = c.snd_pcm_hw_params_set_period_size_near(self.handle, params, &self.frames, &dir);
 
-        // Write the parameters to the driver */
-        rc = c.snd_pcm_hw_params(handle, params);
+        rc = c.snd_pcm_hw_params(self.handle, params);
         if (rc < 0) {
             std.log.err("unable to set hw parameters: {s}", .{c.snd_strerror(rc)});
             return AlsaError.FailedToSetHardware;
         }
 
-        buffer = try alloc.alloc(i8, frames * 4);
-
-        return Self{
-            .rate = @intCast(i32, rate),
-            .amp= 10000,
-            .handle = handle,
-            //.params = params,
-            .buffer = buffer,
-            .frames = frames,
-        };
+        self.buffer = try alloc.alloc(i8, self.frames * @sizeOf(i16) * self.channels);
     }
 
-    pub fn loop(self: Self) void {
+    pub fn loop(self: *Self) void {
         var i: i32 = 0;
         var j: usize = 0;
         var y: f64 = 0;
