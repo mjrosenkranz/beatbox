@@ -19,6 +19,7 @@ pub const Sounder = struct {
     buffer: []i8 = undefined,
     frames: c.snd_pcm_uframes_t = 0,
     user_fn: ?fn(f64) f64 = null,
+    thread: *std.Thread = undefined,
 
     const Self = @This();
 
@@ -65,9 +66,10 @@ pub const Sounder = struct {
         }
 
         self.buffer = try alloc.alloc(i8, self.frames * @sizeOf(i16) * self.channels);
+        self.thread = try std.Thread.spawn(self,loop);
     }
 
-    pub fn loop(self: *Self) void {
+    fn loop(self: *Self) void {
         var i: i32 = 0;
         var j: usize = 0;
         var y: f64 = 0;
@@ -99,6 +101,7 @@ pub const Sounder = struct {
     }
 
     pub fn deinit(self: Self) void {
+        self.thread.wait();
         alloc.free(self.buffer);
         _ = c.snd_pcm_drain(self.handle);
         _ = c.snd_pcm_close(self.handle);
