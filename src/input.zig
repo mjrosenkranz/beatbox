@@ -5,7 +5,7 @@ const c = @cImport({
 });
 const alloc = std.heap.page_allocator;
 
-pub const io_mode = .evented;
+//pub const io_mode = .evented;
 var evfile: fs.File = undefined;
 
 var keyState: [@typeInfo(KeyCode).Enum.fields.len]bool = undefined;
@@ -21,7 +21,7 @@ pub fn update() ![]bool {
     var bytes: [24]u8 = undefined;
     try reader.readNoEof(bytes[0..]);
     const ev = @bitCast(c.input_event, bytes);
-    if (ev.type == 1) {
+    if (ev.type == 1 and ev.code < @typeInfo(KeyCode).Enum.fields.len) {
         keyState[ev.code] = if (ev.value > 0) true else false;
     }
     return keyState[0..];

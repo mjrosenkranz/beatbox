@@ -27,7 +27,7 @@ pub const Sounder = struct {
     pub fn init() Self {
         return Self{
             .rate = 44100,
-            .amp = 15000,
+            .amp = 16000,
             .channels = 2,
             .user_fn = dummyfn,
         };

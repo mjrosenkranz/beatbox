@@ -1,18 +1,8 @@
 const std = @import("std");
 const os = std.os;
+const math = std.math;
 const sound = @import("sound.zig");
 const input = @import("input.zig");
-
-/// the base frequency of A2
-const baseFreq = 110.0;
-/// The 12th root since we are using the western scale
-const d12thRootOf2 = std.math.pow(f64, 2.0, 1.0 / 12.0);
-
-var freq: f64 = 0.0;
-inline fn wav(x: f64) f64 {
-    const y = @sin(2.0 * 3.14159 * freq * x);
-    return y;
-}
 
 const keyboard = 
 \\|   |   |   |   |   | |   |   |   |   | |   | |   |   |   |
@@ -23,12 +13,49 @@ const keyboard =
 \\|_____|_____|_____|_____|_____|_____|_____|_____|_____|_____|
 ;
 
+/// the base frequency of A2
+const baseFreq = 110.0;
+/// The 12th root since we are using the western scale
+const d12thRootOf2 = std.math.pow(f64, 2.0, 1.0 / 12.0);
+var freq: f64 = 0.0;
+
+/// angular velocity helper func
+inline fn w(hertz: f64) f64 {
+    return 2.0 * math.pi * hertz;
+}
+
+/// osc for our sine wave
+inline fn makeNoise(x: f64) f64 {
+    return osc(freq, x, .sqr);
+}
+
+const OscType = enum {
+    sin,
+    sqr,
+    tri,
+};
+
+fn osc(hertz: f64 , dt: f64, oType: OscType) f64 {
+    return switch (oType) {
+        .sin => @sin(w(freq) * dt),
+        .sqr => {
+            if (@sin(w(freq) * dt) > 0) {
+                return 1;
+            } else {
+                return 0;
+            }
+        },
+        .tri => math.asin(@sin(w(freq) * dt)) * 2.0 / math.pi,
+        //else => 0.0,
+    };
+}
+
 pub fn main() anyerror!void {
     try input.init();
     defer input.deinit();
     // note we are playing
     var ss = sound.Sounder.init();
-    ss.user_fn = wav;
+    ss.user_fn = makeNoise;
     try ss.setup();
     defer ss.deinit();
 
