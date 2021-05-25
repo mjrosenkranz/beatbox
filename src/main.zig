@@ -4,6 +4,8 @@ const math = std.math;
 const sound = @import("sound.zig");
 const input = @import("input.zig");
 
+var r = std.rand.DefaultPrng.init(12345);
+
 const keyboard = 
 \\|   |   |   |   |   | |   |   |   |   | |   | |   |   |   |
 \\|   | S |   |   | F | | G |   |   | J | | K | | L |   |   |
@@ -24,19 +26,23 @@ inline fn w(hertz: f64) f64 {
     return 2.0 * math.pi * hertz;
 }
 
-/// osc for our sine wave
-inline fn makeNoise(x: f64) f64 {
-    return osc(freq, x, .sqr);
-}
-
 const OscType = enum {
+    /// normal sin wave
     sin,
+    /// square wave
     sqr,
+    /// triangle wave
     tri,
+    /// real saw wave
+    asaw,
+    /// digital saw wave
+    dsaw,
+    /// random noise
+    noise,
 };
 
-fn osc(hertz: f64 , dt: f64, oType: OscType) f64 {
-    return switch (oType) {
+inline fn osc(hertz: f64 , dt: f64, oscType: OscType) f64 {
+    return switch (oscType) {
         .sin => @sin(w(freq) * dt),
         .sqr => {
             if (@sin(w(freq) * dt) > 0) {
@@ -46,8 +52,23 @@ fn osc(hertz: f64 , dt: f64, oType: OscType) f64 {
             }
         },
         .tri => math.asin(@sin(w(freq) * dt)) * 2.0 / math.pi,
-        //else => 0.0,
+        .dsaw => (2.0 / math.pi) * (hertz * math.pi * @mod(dt, 1.0/hertz) - (2.0 / math.pi)),
+        // TODO: fix this
+        .asaw => {
+            var output: f64 = 0.0;
+            var n: f64 = 0;
+            while(n < 40) : (n+=1) {
+                output += (@sin(n * w(hertz) * dt)) / n;
+            }
+            return output * (2.0 / math.pi);
+        },
+        .noise => r.random.float(f64),
     };
+}
+
+/// osc for our sine wave
+inline fn makeNoise(x: f64) f64 {
+    return osc(freq, x, .tri);
 }
 
 pub fn main() anyerror!void {

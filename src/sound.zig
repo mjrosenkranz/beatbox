@@ -1,4 +1,5 @@
 const std = @import("std");
+const math = std.math;
 const c = @cImport({
     @cInclude("alsa/asoundlib.h");
     @cDefine("ALSA_PCM_NEW_HW_PARAMS_API", "1");
@@ -78,7 +79,7 @@ pub const Sounder = struct {
         while (true) : (i+=1){
             x = @intToFloat(f64, i) / @intToFloat(f64, self.rate);
             // get the user function
-            y = self.user_fn.?(x);
+            y = math.clamp(self.user_fn.?(x), -1.0, 1.0);
             sample = @floatToInt(i32, self.amp * y);
 
             self.buffer[0 + 4*j] = @truncate(i8, sample >> 8);
