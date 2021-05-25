@@ -27,7 +27,7 @@ pub const Sounder = struct {
     pub fn init() Self {
         return Self{
             .rate = 44100,
-            .amp = 10000,
+            .amp = 15000,
             .channels = 2,
             .user_fn = dummyfn,
         };
@@ -77,6 +77,7 @@ pub const Sounder = struct {
         var sample: i32 = 0;
         while (true) : (i+=1){
             x = @intToFloat(f64, i) / @intToFloat(f64, self.rate);
+            // get the user function
             y = self.user_fn.?(x);
             sample = @floatToInt(i32, self.amp * y);
 
