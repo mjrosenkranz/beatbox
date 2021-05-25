@@ -5,29 +5,43 @@ const c = @cImport({
 });
 const alloc = std.heap.page_allocator;
 
-//pub const io_mode = .evented;
 var evfile: fs.File = undefined;
 
 var keyState: [@typeInfo(KeyCode).Enum.fields.len]bool = undefined;
 
+var thread: *std.Thread = undefined;
+var running = true;
+
 pub fn init() !void {
     evfile = try fs.openFileAbsolute("/dev/input/event16", .{.read = true} );
     keyState = [_]bool{false} ** @typeInfo(KeyCode).Enum.fields.len;
+
+    // start thread
+    thread = try std.Thread.spawn(&running,update);
 }
 
-pub fn update() ![]bool {
-    // TODO: move this to separate thread
+/// update loop to be run in background
+fn update(isrunning: *bool) void {
     const reader = evfile.reader();
     var bytes: [24]u8 = undefined;
-    try reader.readNoEof(bytes[0..]);
-    const ev = @bitCast(c.input_event, bytes);
-    if (ev.type == 1 and ev.code < @typeInfo(KeyCode).Enum.fields.len) {
-        keyState[ev.code] = if (ev.value > 0) true else false;
+    while (isrunning.*) {
+        reader.readNoEof(bytes[0..]) catch |err| {
+            std.debug.warn("Could not read from input device", .{});
+        };
+        const ev = @bitCast(c.input_event, bytes);
+        if (ev.type == 1 and ev.code < @typeInfo(KeyCode).Enum.fields.len) {
+            keyState[ev.code] = if (ev.value > 0) true else false;
+            std.debug.warn("event", .{});
+        }
     }
+}
+///
+pub fn query() ![]bool {
     return keyState[0..];
 }
 
 pub fn deinit() void {
+    thread.wait();
     evfile.close();
 }
 

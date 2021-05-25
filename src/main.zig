@@ -62,7 +62,7 @@ pub fn main() anyerror!void {
     while (true) {
         var keyPressed = false;
 
-        const char = try input.update();
+        const char = try input.query();
 
         if (char[@enumToInt(input.KeyCode.KEY_Q)]) {
             std.log.info("quitting!", .{});
