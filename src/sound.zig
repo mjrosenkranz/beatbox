@@ -20,6 +20,8 @@ pub const Sounder = struct {
     buffer: []i8 = undefined,
     frames: c.snd_pcm_uframes_t = 0,
     user_fn: ?fn(f64) f64 = null,
+    /// global time
+    gTime: f64 = 0.0,
     thread: *std.Thread = undefined,
 
     const Self = @This();
@@ -76,16 +78,21 @@ pub const Sounder = struct {
         var y: f64 = 0;
         var x: f64 = 0;
         var sample: i32 = 0;
+
+        self.gTime = 0.0;
+        const timeStep: f64 = 1.0/@intToFloat(f64, self.rate);
+
         while (true) : (i+=1){
-            x = @intToFloat(f64, i) / @intToFloat(f64, self.rate);
             // get the user function
-            y = math.clamp(self.user_fn.?(x), -1.0, 1.0);
+            y = math.clamp(self.user_fn.?(self.gTime), -1.0, 1.0);
             sample = @floatToInt(i32, self.amp * y);
 
             self.buffer[0 + 4*j] = @truncate(i8, sample >> 8);
             self.buffer[1 + 4*j] = @truncate(i8, (sample));
             self.buffer[2 + 4*j] = @truncate(i8, sample >> 8);
             self.buffer[3 + 4*j] = @truncate(i8, (sample));
+
+            self.gTime += timeStep;
 
             // If we have a buffer full of samples, write 1 period of 
             //samples to the sound card
@@ -100,6 +107,10 @@ pub const Sounder = struct {
                 j = 0;
             }
         }
+    }
+
+    pub fn getTime(self: Self) f64 {
+        return self.gTime;
     }
 
     pub fn deinit(self: Self) void {

@@ -3,8 +3,9 @@ const os = std.os;
 const math = std.math;
 const sound = @import("sound.zig");
 const input = @import("input.zig");
+const osc = @import("oscillator.zig");
+const env = @import("envelope.zig");
 
-var r = std.rand.DefaultPrng.init(12345);
 
 const keyboard = 
 \\|   |   |   |   |   | |   |   |   |   | |   | |   |   |   |
@@ -15,60 +16,19 @@ const keyboard =
 \\|_____|_____|_____|_____|_____|_____|_____|_____|_____|_____|
 ;
 
+pub var freq: f64 = 0.0;
 /// the base frequency of A2
 const baseFreq = 110.0;
 /// The 12th root since we are using the western scale
 const d12thRootOf2 = std.math.pow(f64, 2.0, 1.0 / 12.0);
-var freq: f64 = 0.0;
-
-/// angular velocity helper func
-inline fn w(hertz: f64) f64 {
-    return 2.0 * math.pi * hertz;
-}
-
-const OscType = enum {
-    /// normal sin wave
-    sin,
-    /// square wave
-    sqr,
-    /// triangle wave
-    tri,
-    /// real saw wave
-    asaw,
-    /// digital saw wave
-    dsaw,
-    /// random noise
-    noise,
-};
-
-inline fn osc(hertz: f64 , dt: f64, oscType: OscType) f64 {
-    return switch (oscType) {
-        .sin => @sin(w(freq) * dt),
-        .sqr => {
-            if (@sin(w(freq) * dt) > 0) {
-                return 1;
-            } else {
-                return 0;
-            }
-        },
-        .tri => math.asin(@sin(w(freq) * dt)) * 2.0 / math.pi,
-        .dsaw => (2.0 / math.pi) * (hertz * math.pi * @mod(dt, 1.0/hertz) - (2.0 / math.pi)),
-        // TODO: fix this
-        .asaw => {
-            var output: f64 = 0.0;
-            var n: f64 = 0;
-            while(n < 40) : (n+=1) {
-                output += (@sin(n * w(hertz) * dt)) / n;
-            }
-            return output * (2.0 / math.pi);
-        },
-        .noise => r.random.float(f64),
-    };
-}
-
+var myenv: env.ASDR = .{};
 /// osc for our sine wave
-inline fn makeNoise(x: f64) f64 {
-    return osc(freq, x, .tri);
+inline fn makeNoise(t: f64) f64 {
+    //return myenv.getAmp(t) * osc.osc(freq, t, .sin);
+    return myenv.getAmp(t) * (
+          osc.osc(freq*1.0, t, .sin)
+        + osc.osc(freq*0.5, t, .sqr)
+    );
 }
 
 pub fn main() anyerror!void {
@@ -79,6 +39,7 @@ pub fn main() anyerror!void {
     ss.user_fn = makeNoise;
     try ss.setup();
     defer ss.deinit();
+
 
     //try input.init();
     //defer input.deinit();
@@ -102,6 +63,7 @@ pub fn main() anyerror!void {
         var keyPressed = false;
 
         const char = try input.update();
+
         if (char[@enumToInt(input.KeyCode.KEY_Q)]) {
             std.log.info("quitting!", .{});
             break;
@@ -109,15 +71,17 @@ pub fn main() anyerror!void {
 
         var k: usize = 0;
         while (k < kb.len) : (k+=1) {
-            if (char[@enumToInt(kb[k])]) {
+            if (char[@enumToInt(kb[k])] and k != currKey) {
                 @atomicStore(f64, &freq, baseFreq * std.math.pow(f64, d12thRootOf2, @intToFloat(f64, k)), .SeqCst);
+                myenv.noteOn(ss.getTime());
                 keyPressed = true;
+                currKey = @intCast(i8, k);
             }
         }
 
         if (!keyPressed) {
             currKey = -1;
-            @atomicStore(f64, &freq, 0.0, .SeqCst);
+            myenv.noteOff(ss.getTime());
         }
     }
 
