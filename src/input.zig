@@ -1,107 +1,195 @@
 const std = @import("std");
-const fs = std.fs;
 const c = @cImport({
-    @cInclude("linux/input.h");
+    @cInclude("xcb/xcb.h");
+    @cInclude("X11/Xlib-xcb.h");
+    @cInclude("X11/Xlib.h");
 });
-const alloc = std.heap.page_allocator;
 
-var evfile: fs.File = undefined;
+var display: ?*c.Display = null;
+var connection: *c.xcb_connection_t = undefined;
+var screen: *c.xcb_screen_t = undefined;
+var window: c.xcb_window_t = undefined;
+var wm_proto: c.xcb_atom_t = undefined;
+var wm_del: c.xcb_atom_t = undefined;
 
-var keyState: [@typeInfo(KeyCode).Enum.fields.len]bool = undefined;
+const InputError = error {
+    Connection,
+    FlushError,
+};
 
-var thread: *std.Thread = undefined;
-var running = true;
+/// State of a key this frame
+const KeyState = enum {
+    Pressed,
+    Released,
+    None
+};
+
+/// The keymapping of keys
+const keymap = enum(u8){ 
+    z = 52,
+    s = 39,
+    x = 53,
+    c = 54, 
+    f = 41,
+    v = 55,
+    g = 42,
+    b = 56,
+    n = 57,
+    j = 44,
+    m = 58,
+    k = 45,
+    comma = 59,
+    l = 46,
+    dot = 60,
+    slash = 61,
+};
+
+/// Key edge state
+pub var key_states: [@typeInfo(keymap).Enum.fields.len]KeyState = [_]KeyState{.None} ** @typeInfo(keymap).Enum.fields.len;
+
+/// Curent key state
+var keys_pressed: [@typeInfo(keymap).Enum.fields.len]bool = [_]bool{false} ** @typeInfo(keymap).Enum.fields.len;
 
 pub fn init() !void {
-    evfile = try fs.openFileAbsolute("/dev/input/event16", .{.read = true} );
-    keyState = [_]bool{false} ** @typeInfo(KeyCode).Enum.fields.len;
+    // open the display
+    display = c.XOpenDisplay(null).?;
+    _ = c.XAutoRepeatOff(display);
 
-    // start thread
-    thread = try std.Thread.spawn(&running,update);
+    // get connection
+    connection = c.XGetXCBConnection(display).?;
+    
+    if (c.xcb_connection_has_error(connection) != 0) {
+        return InputError.Connection;
+    }
+
+    var itr: c.xcb_screen_iterator_t = c.xcb_setup_roots_iterator(c.xcb_get_setup(connection));
+    // Use the last screen
+    screen = @ptrCast(*c.xcb_screen_t, itr.data);
+
+    // Allocate an id for our window
+    window = c.xcb_generate_id(connection);
+
+    // We are setting the background pixel color and the event mask
+    const mask: u32  = c.XCB_CW_BACK_PIXEL | c.XCB_CW_EVENT_MASK;
+
+    // background color and events to request
+    const values = [_]u32 {screen.*.black_pixel, c.XCB_EVENT_MASK_BUTTON_PRESS | c.XCB_EVENT_MASK_BUTTON_RELEASE |
+                       c.XCB_EVENT_MASK_KEY_PRESS | c.XCB_EVENT_MASK_KEY_RELEASE |
+                       c.XCB_EVENT_MASK_EXPOSURE | c.XCB_EVENT_MASK_POINTER_MOTION |
+                       c.XCB_EVENT_MASK_STRUCTURE_NOTIFY};
+
+    // Create the window
+    const cookie: c.xcb_void_cookie_t = c.xcb_create_window(
+        connection,
+        c.XCB_COPY_FROM_PARENT,
+        window,
+        screen.*.root,
+        0,
+        0,
+        200,
+        200,
+        0,
+        c.XCB_WINDOW_CLASS_INPUT_OUTPUT,
+        screen.*.root_visual,
+        mask,
+        values[0..]);
+
+    // Notify us when the window manager wants to delete the window
+    const datomname = "WM_DELETE_WINDOW";
+    const wm_delete_reply = c.xcb_intern_atom_reply(
+        connection,
+        c.xcb_intern_atom(
+          connection,
+          0,
+          datomname.len,
+          datomname),
+        null);
+    const patomname = "WM_PROTOCOLS";
+    const wm_protocols_reply = c.xcb_intern_atom_reply(
+        connection,
+        c.xcb_intern_atom(
+          connection,
+          0,
+          patomname.len,
+          patomname),
+        null);
+
+    //// store the atoms
+    wm_del = wm_delete_reply.*.atom;
+    wm_proto = wm_protocols_reply.*.atom;
+
+    // ask the sever to actually set the atom
+    _ = c.xcb_change_property(
+        connection,
+        c.XCB_PROP_MODE_REPLACE,
+        window,
+        wm_proto,
+        4,
+        32,
+        1,
+        &wm_del);
+
+    // Map the window to the screen
+    _ = c.xcb_map_window(connection, window);
+
+    // flush pending actions to the server
+    if (c.xcb_flush(connection) <= 0) {
+        return InputError.FlushError;
+    }
+
+
 }
 
-/// update loop to be run in background
-fn update(isrunning: *bool) void {
-    const reader = evfile.reader();
-    var bytes: [24]u8 = undefined;
-    while (isrunning.*) {
-        reader.readNoEof(bytes[0..]) catch |err| {
-            std.debug.warn("Could not read from input device", .{});
-        };
-        const ev = @bitCast(c.input_event, bytes);
-        if (ev.type == 1 and ev.code < @typeInfo(KeyCode).Enum.fields.len) {
-            keyState[ev.code] = if (ev.value > 0) true else false;
-            std.debug.warn("event", .{});
+fn updateKey(k: u8, pressed: bool) void {
+    var i: usize = 0;
+    inline for (@typeInfo(keymap).Enum.fields) |f| {
+        if (k == f.value) {
+            // if opposites then set
+            if (keys_pressed[i] != pressed) {
+                key_states[i] = if (pressed) KeyState.Pressed else KeyState.Released;
+            }
+            keys_pressed[i] = pressed;
         }
+        i+=1;
     }
 }
-///
-pub fn query() ![]bool {
-    return keyState[0..];
+
+pub fn update() bool {
+    // reset key_states to none
+    key_states = [_]KeyState{.None} ** @typeInfo(keymap).Enum.fields.len;
+
+    // Poll for events until null is returned.
+    while (true) {
+        const event = c.xcb_poll_for_event(connection);
+        if (event == 0) {
+            break;
+        }
+
+        // Input events
+        switch (event.*.response_type & ~@as(u32, 0x80)) {
+            c.XCB_KEY_PRESS => {
+                const kev = @ptrCast(*c.xcb_key_press_event_t, event);
+                updateKey(kev.*.detail, true);
+            },
+            c.XCB_KEY_RELEASE => {
+                const kev = @ptrCast(*c.xcb_key_press_event_t, event);
+                updateKey(kev.*.detail, false);
+            },
+            c.XCB_CLIENT_MESSAGE => {
+                const cm = @ptrCast(*c.xcb_client_message_event_t, event);
+                // Window close
+                if (cm.*.data.data32[0] == wm_del) {
+                    return false;
+                }
+            },
+            else => continue,
+        }
+      _ = c.xcb_flush(connection);
+    }
+    return true;
 }
 
 pub fn deinit() void {
-    thread.wait();
-    evfile.close();
+    _ = c.XAutoRepeatOn(display);
+    _ = c.xcb_destroy_window(connection, window);
 }
-
-pub const KeyCode = enum(u8) {
-    KEY_ESC = 1,
-    KEY_1 = 2,
-    KEY_2 = 3,
-    KEY_3 = 4,
-    KEY_4 = 5,
-    KEY_5 = 6,
-    KEY_6 = 7,
-    KEY_7 = 8,
-    KEY_8 = 9,
-    KEY_9 = 10,
-    KEY_0 = 11,
-    KEY_MINUS = 12,
-    KEY_EQUAL = 13,
-    KEY_BACKSPACE = 14,
-    KEY_TAB = 15,
-    KEY_Q = 16,
-    KEY_W = 17,
-    KEY_E = 18,
-    KEY_R = 19,
-    KEY_T = 20,
-    KEY_Y = 21,
-    KEY_U = 22,
-    KEY_I = 23,
-    KEY_O = 24,
-    KEY_P = 25,
-    KEY_LEFTBRACE = 26,
-    KEY_RIGHTBRACE = 27,
-    KEY_ENTER = 28,
-    KEY_LEFTCTRL = 29,
-    KEY_A = 30,
-    KEY_S = 31,
-    KEY_D = 32,
-    KEY_F = 33,
-    KEY_G = 34,
-    KEY_H = 35,
-    KEY_J = 36,
-    KEY_K = 37,
-    KEY_L = 38,
-    KEY_SEMICOLON = 39,
-    KEY_APOSTROPHE = 40,
-    KEY_GRAVE = 41,
-    KEY_LEFTSHIFT = 42,
-    KEY_BACKSLASH = 43,
-    KEY_Z = 44,
-    KEY_X = 45,
-    KEY_C = 46,
-    KEY_V = 47,
-    KEY_B = 48,
-    KEY_N = 49,
-    KEY_M = 50,
-    KEY_COMMA = 51,
-    KEY_DOT = 52,
-    KEY_SLASH = 53,
-    KEY_RIGHTSHIFT = 54,
-    KEY_KPASTERISK = 55,
-    KEY_LEFTALT = 56,
-    KEY_SPACE = 57,
-    KEY_CAPSLOCK = 58,
-};

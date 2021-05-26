@@ -23,6 +23,7 @@ pub const Sounder = struct {
     /// global time
     gTime: f64 = 0.0,
     thread: *std.Thread = undefined,
+    running: bool = true,
 
     const Self = @This();
 
@@ -42,7 +43,7 @@ pub const Sounder = struct {
         var dir: i32 = 0;
         if (c.snd_pcm_open(&self.handle, "default",
                 c._snd_pcm_stream.SND_PCM_STREAM_PLAYBACK, 0) != 0) {
-            std.log.err("{c}", .{c.snd_strerror(rc)});
+            std.log.err("{s}", .{c.snd_strerror(rc)});
             return AlsaError.FailedToOpen;
         }
 
@@ -69,7 +70,7 @@ pub const Sounder = struct {
         }
 
         self.buffer = try alloc.alloc(i8, self.frames * @sizeOf(i16) * self.channels);
-        self.thread = try std.Thread.spawn(self,loop);
+        self.thread = try std.Thread.spawn(loop, self);
     }
 
     fn loop(self: *Self) void {
@@ -82,7 +83,7 @@ pub const Sounder = struct {
         self.gTime = 0.0;
         const timeStep: f64 = 1.0/@intToFloat(f64, self.rate);
 
-        while (true) : (i+=1){
+        while (self.running) : (i+=1){
             // get the user function
             y = math.clamp(self.user_fn.?(self.gTime), -1.0, 1.0);
             sample = @floatToInt(i32, self.amp * y);
@@ -113,7 +114,8 @@ pub const Sounder = struct {
         return self.gTime;
     }
 
-    pub fn deinit(self: Self) void {
+    pub fn deinit(self: *Self) void {
+        self.running = false;
         self.thread.wait();
         alloc.free(self.buffer);
         _ = c.snd_pcm_drain(self.handle);
