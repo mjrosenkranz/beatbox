@@ -12,7 +12,7 @@ const OscType = enum {
     sqr,
     /// triangle wave
     tri,
-    /// real saw wave
+    /// analog saw wave
     asaw,
     /// digital saw wave
     dsaw,
@@ -37,8 +37,8 @@ pub inline fn osc(hertz: f64 , dt: f64, oscType: OscType) f64 {
         },
         .tri => math.asin(@sin(w(hertz) * dt)) * 2.0 / math.pi,
         .dsaw => (2.0 / math.pi) * (hertz * math.pi * @mod(dt, 1.0/hertz) - (2.0 / math.pi)),
-        // TODO: fix this
         .asaw => {
+            // TODO: fix this
             var output: f64 = 0.0;
             var n: f64 = 0;
             while(n < 40) : (n+=1) {

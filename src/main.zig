@@ -25,10 +25,7 @@ var myenv: env.ASDR = .{};
 /// osc for our sine wave
 inline fn makeNoise(t: f64) f64 {
     //return myenv.getAmp(t) * osc.osc(freq, t, .sin);
-    return myenv.getAmp(t) * (
-          osc.osc(freq*1.0, t, .sin)
-        + osc.osc(freq*0.5, t, .sqr)
-    );
+    return myenv.getAmp(t) * osc.osc(freq*1.0, t, .sin);
 }
 
 pub fn main() anyerror!void {

@@ -16,10 +16,10 @@ pub fn init() !void {
 }
 
 pub fn update() ![]bool {
-    // TODO: move this to separate thread
     const reader = evfile.reader();
     var bytes: [24]u8 = undefined;
-    try reader.readNoEof(bytes[0..]);
+    //try reader.readNoEof(bytes[0..]);
+    var n = try reader.read(bytes[0..]);
     const ev = @bitCast(c.input_event, bytes);
     if (ev.type == 1 and ev.code < @typeInfo(KeyCode).Enum.fields.len) {
         keyState[ev.code] = if (ev.value > 0) true else false;
