@@ -12,7 +12,7 @@ const AlsaError = error {
 
 const alloc = std.heap.page_allocator;
 
-pub const Sounder = struct {
+pub const SoundOut = struct {
     rate: u32,
     amp: f64,
     channels: u8,

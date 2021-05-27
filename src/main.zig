@@ -1,7 +1,7 @@
 const std = @import("std");
 const os = std.os;
 const math = std.math;
-const sound = @import("sound.zig");
+const soundout = @import("soundout.zig");
 const input = @import("input.zig");
 const instrument = @import("instrument.zig");
 const notes = @import("note.zig");
@@ -17,21 +17,23 @@ const keyboard =
 ;
 
 var note: notes.Note = undefined;
-var inst = instrument.bell.init();
-/// osc for our sine wave
+var inst: instrument.Bell = instrument.bell();
+
 fn makeNoise(t: f64) f64 {
-    //return myenv.getAmp(t) * osc.osc(freq*1.0, t, .sqr, 5.0, 0.01);
-    return inst.sound(t, note) * 0.4;
+    return inst.sound(t, note);
 }
 
 pub fn main() anyerror!void {
     try input.init();
     defer input.deinit();
     // note we are playing
-    var ss = sound.Sounder.init();
+    var ss = soundout.SoundOut.init();
     ss.user_fn = makeNoise;
     try ss.setup();
     defer ss.deinit();
+
+    // change volue
+    inst.volume = 0.1;
 
     // TODO:clear screen and write the keyboard with other information
     // write our lil keyboard to the screen
