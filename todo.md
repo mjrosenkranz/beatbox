@@ -9,11 +9,9 @@
 	- channels
 	- blocks
 	- samples per block
-- [ ] Query device with chosen params
-	- [ ] Query device with chosen params
 
 ## Sampling
-- [ ] Play raw sample
+- [x] Play raw sample
 - [ ] Read in wave file
 	- [ ] change endianess
 
