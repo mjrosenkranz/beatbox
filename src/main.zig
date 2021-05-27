@@ -35,7 +35,7 @@ fn makeNoise(t: f64) f64 {
 
 const snare = @embedFile("../samples/Snare_s16le.raw");
 const one = @embedFile("../samples/One-Shot.raw");
-fn makeNoise2(t: f64) [2]f32 {
+fn makeNoise2(t: f64) soundout.Frame {
     const len = @intToFloat(f64, snare.len);
     const i = @mod(@floatToInt(usize, t * 44100), snare.len/4);
     const snare_bytes = [_]u8{
@@ -53,9 +53,9 @@ fn makeNoise2(t: f64) [2]f32 {
     };
     const i16s = @bitCast([2]i16, snare_bytes);
     //get number -1 to 1 for each i16
-    var floats = [_]f32 {
-        @intToFloat(f32, i16s[0]) / 65536.0,
-        @intToFloat(f32, i16s[1]) / 65536.0,
+    var f: soundout.Frame = .{
+        .l = @intToFloat(f64, i16s[0]) / 65536.0,
+        .r = @intToFloat(f64, i16s[1]) / 65536.0,
     };
 
     var mixedout: f64 = 0.0;
@@ -63,9 +63,9 @@ fn makeNoise2(t: f64) [2]f32 {
         if (note.active)
             mixedout += inst.sound(t, note);
     }
-    floats[0] += @floatCast(f32, mixedout);
-    floats[1] += @floatCast(f32, mixedout);
-    return floats;
+    f.l += mixedout;
+    f.r += mixedout;
+    return f;
 }
 
 pub fn main() anyerror!void {

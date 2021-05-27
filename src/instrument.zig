@@ -31,16 +31,7 @@ const snare = @embedFile("../samples/Snare_s16le.raw");
 fn sampleSound(t: f64, env: envelope.ASDR, n: *notes.Note) f64 {
     //return env.getAmp(t, n) sample at point;
     // time since sample started playing
-    const i = @mod(@floatToInt(usize, (t - n.on) / 44100.0), snare.len/4);
-    const sample_bytes = [_]u8{snare[i], snare[i+1], snare[i+2], snare[i+3]};
-    // index into sample array for appropriate sample
- //   const sample = @ptrCast([*]const f64, snare);
- //   var i = @floatToInt(usize, lifeTime / 44100.0);
- //   if (i > snare.len / 4) {
- //       n.active = false;
- //   }
- //   return sample[i];
-    //return @bitCast(f64, sample_bytes);
+
     return 0.0;
 }
 

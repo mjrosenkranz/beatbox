@@ -13,15 +13,19 @@ const AlsaError = error {
 
 const alloc = std.heap.page_allocator;
 
+pub const Frame = packed struct {
+    l: f64 = 0.0,
+    r: f64 = 0.0,
+};
+
 pub const SoundOut = struct {
     rate: u32,
     amp: f64,
     channels: u8,
     handle: ?*c.snd_pcm_t = null,
-    //buffer: []i8 = undefined,
-    buffer: []f32 = undefined,
+    buffer: []Frame = undefined,
     frames: c.snd_pcm_uframes_t = 0,
-    user_fn: ?fn(f64) [2]f32 = null,
+    user_fn: ?fn(f64) Frame = null,
     /// global time
     gTime: f64 = 0.0,
     thread: *std.Thread = undefined,
@@ -57,7 +61,7 @@ pub const SoundOut = struct {
 
         _ = c.snd_pcm_hw_params_set_format(self.handle, params,
             //c.snd_pcm_format_t.SND_PCM_FORMAT_S16_LE);
-            c.snd_pcm_format_t.SND_PCM_FORMAT_FLOAT_LE);
+            c.snd_pcm_format_t.SND_PCM_FORMAT_FLOAT64_LE);
 
         _ = c.snd_pcm_hw_params_set_channels(self.handle, params, self.channels);
 
@@ -72,8 +76,7 @@ pub const SoundOut = struct {
             return AlsaError.FailedToSetHardware;
         }
 
-        //self.buffer = try alloc.alloc(i8, self.frames * @sizeOf(i16) * self.channels);
-        self.buffer = try alloc.alloc(f32, self.frames * @sizeOf(f32) * self.channels);
+        self.buffer = try alloc.alloc(Frame, self.frames * @sizeOf(Frame) * self.channels);
         self.thread = try std.Thread.spawn(loop, self);
     }
 
@@ -92,7 +95,7 @@ pub const SoundOut = struct {
             // get the user function
 //            y = math.clamp(self.user_fn.?(self.gTime), -1.0, 1.0);
 
-            const floats = self.user_fn.?(self.gTime);
+            const ff = self.user_fn.?(self.gTime);
             //sample = self.user_fn.?(self.gTime);
             //self.buffer[0 + 4*j] = @bitCast(i8, sample[0]);
             //self.buffer[1 + 4*j] = @bitCast(i8, sample[1]);
@@ -111,8 +114,9 @@ pub const SoundOut = struct {
             //    @floatToInt(i32, self.amp * floats[0]),
             //    @floatToInt(i32, self.amp * floats[1]),
             //};
-            self.buffer[0 + 2*j] = floats[0];
-            self.buffer[1 + 2*j] = floats[1];
+            self.buffer[j] = ff;
+            //self.buffer[0 + 2*j] = ff.l;
+            //self.buffer[1 + 2*j] = ff.r;
 
             //self.buffer[0 + 4*j] = @truncate(i8, (isample[0]));
             //self.buffer[1 + 4*j] = @truncate(i8, isample[0] >> 8);
