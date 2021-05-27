@@ -55,6 +55,7 @@ pub const SoundOut = struct {
 
         _ = c.snd_pcm_hw_params_set_format(self.handle, params,
             c.snd_pcm_format_t.SND_PCM_FORMAT_S16_BE);
+            //c.snd_pcm_format_t.SND_PCM_FORMAT_S16_LE);
 
         _ = c.snd_pcm_hw_params_set_channels(self.handle, params, self.channels);
 
@@ -88,10 +89,14 @@ pub const SoundOut = struct {
             y = math.clamp(self.user_fn.?(self.gTime), -1.0, 1.0);
             sample = @floatToInt(i32, self.amp * y);
 
-            self.buffer[0 + 4*j] = @truncate(i8, sample >> 8);
-            self.buffer[1 + 4*j] = @truncate(i8, (sample));
-            self.buffer[2 + 4*j] = @truncate(i8, sample >> 8);
-            self.buffer[3 + 4*j] = @truncate(i8, (sample));
+//            self.buffer[0 + 4*j] = @truncate(i8, sample >> 8);
+//            self.buffer[1 + 4*j] = @truncate(i8, (sample));
+//            self.buffer[2 + 4*j] = @truncate(i8, sample >> 8);
+//            self.buffer[3 + 4*j] = @truncate(i8, (sample));
+            self.buffer[1 + 4*j] = @truncate(i8, sample >> 8);
+            self.buffer[0 + 4*j] = @truncate(i8, (sample));
+            self.buffer[3 + 4*j] = @truncate(i8, sample >> 8);
+            self.buffer[2 + 4*j] = @truncate(i8, (sample));
 
             self.gTime += timeStep;
 
