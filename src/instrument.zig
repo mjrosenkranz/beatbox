@@ -1,4 +1,5 @@
 const envelope = @import("envelope.zig");
+const notes = @import("note.zig");
 const osc = @import("oscillator.zig");
 
 //    env: envelope.ASDR,
@@ -19,12 +20,12 @@ pub const bell = struct {
         };
     }
 
-    pub fn sound(self: Self, t: f64, freq: f64) f64 {
+    pub fn sound(self: Self, t: f64, n: notes.Note) f64 {
          //self.soundfn(t, freq);
         return self.env.getAmp(t) * (
-            1.0 * osc.osc(freq * 2.0, t, .sin, 5.0, 0.001) +
-            0.5 * osc.osc(freq * 3.0, t, .sin, 0.0, 0.0) +
-            0.25 * osc.osc(freq * 4.0, t, .sin, 0.0, 0.0)
+            1.0 * osc.osc(t, notes.freqFromScale(n.id + 12, .chromatic), .sin, 5.0, 0.001) +
+            0.5 * osc.osc(t, notes.freqFromScale(n.id + 24, .chromatic), .sin, 0.0, 0.0) +
+            0.25 * osc.osc(t,notes.freqFromScale(n.id + 36, .chromatic), .sin, 0.0, 0.0)
         );
     }
 };

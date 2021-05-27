@@ -4,6 +4,7 @@ const math = std.math;
 const sound = @import("sound.zig");
 const input = @import("input.zig");
 const instrument = @import("instrument.zig");
+const notes = @import("note.zig");
 
 const keyboard = 
 \\|   |   |   |   |   | |   |   |   |   | |   | |   |   |   |
@@ -15,16 +16,12 @@ const keyboard =
 \\
 ;
 
-pub var freq: f64 = 0.0;
-/// the base frequency of A2
-const baseFreq = 110.0;
-/// The 12th root since we are using the western scale
-const d12thRootOf2 = std.math.pow(f64, 2.0, 1.0 / 12.0);
+var note: notes.Note = undefined;
 var inst = instrument.bell.init();
 /// osc for our sine wave
 fn makeNoise(t: f64) f64 {
     //return myenv.getAmp(t) * osc.osc(freq*1.0, t, .sqr, 5.0, 0.01);
-    return inst.sound(t, freq) * 0.4;
+    return inst.sound(t, note) * 0.4;
 }
 
 pub fn main() anyerror!void {
@@ -49,7 +46,8 @@ pub fn main() anyerror!void {
         var k: usize = 0;
         while (k < input.key_states.len) : (k+=1) {
             if (input.key_states[k] == .Pressed) {
-                @atomicStore(f64, &freq, baseFreq * std.math.pow(f64, d12thRootOf2, @intToFloat(f64, k)), .SeqCst);
+                //@atomicStore(*notes.Note, &freq, baseFreq * std.math.pow(f64, d12thRootOf2, @intToFloat(f64, k)), .SeqCst);
+                note.id = @intCast(u8, k);
                 inst.env.noteOn(ss.getTime());
             }
             if (input.key_states[k] == .Released) {

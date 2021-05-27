@@ -1,4 +1,3 @@
-
 pub const ASDR = struct {
     attack: f64 = 0.1,
     decay: f64 = 0.01,
