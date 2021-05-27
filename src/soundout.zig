@@ -84,8 +84,6 @@ pub const SoundOut = struct {
 
         self.gTime = 0.0;
         const timeStep: f64 = 1.0/@intToFloat(f64, self.rate);
-        const snare = @embedFile("../samples/Snare_s16le.raw");
-        std.log.info("size of snare in u8: {}", .{snare.len});
 
         while (self.running) {
             // get the user function
