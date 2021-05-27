@@ -18,9 +18,10 @@ pub const SoundOut = struct {
     amp: f64,
     channels: u8,
     handle: ?*c.snd_pcm_t = null,
-    buffer: []i8 = undefined,
+    //buffer: []i8 = undefined,
+    buffer: []f32 = undefined,
     frames: c.snd_pcm_uframes_t = 0,
-    user_fn: ?fn(f64) [4]u8 = null,
+    user_fn: ?fn(f64) [2]f32 = null,
     /// global time
     gTime: f64 = 0.0,
     thread: *std.Thread = undefined,
@@ -55,7 +56,8 @@ pub const SoundOut = struct {
         _ = c.snd_pcm_hw_params_set_access(self.handle, params, c.snd_pcm_access_t.SND_PCM_ACCESS_RW_INTERLEAVED);
 
         _ = c.snd_pcm_hw_params_set_format(self.handle, params,
-            c.snd_pcm_format_t.SND_PCM_FORMAT_S16_LE);
+            //c.snd_pcm_format_t.SND_PCM_FORMAT_S16_LE);
+            c.snd_pcm_format_t.SND_PCM_FORMAT_FLOAT_LE);
 
         _ = c.snd_pcm_hw_params_set_channels(self.handle, params, self.channels);
 
@@ -70,7 +72,8 @@ pub const SoundOut = struct {
             return AlsaError.FailedToSetHardware;
         }
 
-        self.buffer = try alloc.alloc(i8, self.frames * @sizeOf(i16) * self.channels);
+        //self.buffer = try alloc.alloc(i8, self.frames * @sizeOf(i16) * self.channels);
+        self.buffer = try alloc.alloc(f32, self.frames * @sizeOf(f32) * self.channels);
         self.thread = try std.Thread.spawn(loop, self);
     }
 
@@ -88,17 +91,33 @@ pub const SoundOut = struct {
         while (self.running) {
             // get the user function
 //            y = math.clamp(self.user_fn.?(self.gTime), -1.0, 1.0);
-//            sample = @floatToInt(i32, self.amp * y);
 
-            sample = self.user_fn.?(self.gTime);
-            self.buffer[0 + 4*j] = @bitCast(i8, sample[0]);
-            self.buffer[1 + 4*j] = @bitCast(i8, sample[1]);
-            self.buffer[2 + 4*j] = @bitCast(i8, sample[2]);
-            self.buffer[3 + 4*j] = @bitCast(i8, sample[3]);
-            //self.buffer[0 + 4*j] = @truncate(i8, (sample));
-            //self.buffer[1 + 4*j] = @truncate(i8, sample >> 8);
-            //self.buffer[2 + 4*j] = @truncate(i8, (sample));
-            //self.buffer[3 + 4*j] = @truncate(i8, sample >> 8);
+            const floats = self.user_fn.?(self.gTime);
+            //sample = self.user_fn.?(self.gTime);
+            //self.buffer[0 + 4*j] = @bitCast(i8, sample[0]);
+            //self.buffer[1 + 4*j] = @bitCast(i8, sample[1]);
+            //self.buffer[2 + 4*j] = @bitCast(i8, sample[2]);
+            //self.buffer[3 + 4*j] = @bitCast(i8, sample[3]);
+
+            // get two i16s from the buffer
+            //const i16s = @bitCast([2]i16, sample);
+            // get number 0 to 1 for each i16
+            //const floats = [_]f32 {
+            //    @intToFloat(f32, i16s[0]) / 65536.0,
+            //    @intToFloat(f32, i16s[1]) / 65536.0,
+            //};
+            //// translate back into integer samples
+            //const isample = [_]i32 {
+            //    @floatToInt(i32, self.amp * floats[0]),
+            //    @floatToInt(i32, self.amp * floats[1]),
+            //};
+            self.buffer[0 + 2*j] = floats[0];
+            self.buffer[1 + 2*j] = floats[1];
+
+            //self.buffer[0 + 4*j] = @truncate(i8, (isample[0]));
+            //self.buffer[1 + 4*j] = @truncate(i8, isample[0] >> 8);
+            //self.buffer[2 + 4*j] = @truncate(i8, (isample[1]));
+            //self.buffer[3 + 4*j] = @truncate(i8, isample[1] >> 8);
 
             self.gTime += timeStep;
 
