@@ -17,7 +17,7 @@ const keyboard =
 ;
 
 var note: notes.Note = undefined;
-var inst: instrument.Bell = instrument.bell();
+var inst: instrument.Instrument = instrument.Bell();
 
 fn makeNoise(t: f64) f64 {
     return inst.sound(t, note);
