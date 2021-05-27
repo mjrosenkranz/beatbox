@@ -1,5 +1,6 @@
 const std = @import("std");
 const math = std.math;
+const instrument = @import("instrument.zig");
 const c = @cImport({
     @cInclude("alsa/asoundlib.h");
     @cDefine("ALSA_PCM_NEW_HW_PARAMS_API", "1");
@@ -19,7 +20,7 @@ pub const SoundOut = struct {
     handle: ?*c.snd_pcm_t = null,
     buffer: []i8 = undefined,
     frames: c.snd_pcm_uframes_t = 0,
-    user_fn: ?fn(f64) f64 = null,
+    user_fn: ?fn(f64) [4]u8 = null,
     /// global time
     gTime: f64 = 0.0,
     thread: *std.Thread = undefined,
@@ -33,7 +34,7 @@ pub const SoundOut = struct {
             .rate = 44100,
             .amp = 16000,
             .channels = 2,
-            .user_fn = dummyfn,
+            .user_fn = null,
         };
     }
 
@@ -54,8 +55,7 @@ pub const SoundOut = struct {
         _ = c.snd_pcm_hw_params_set_access(self.handle, params, c.snd_pcm_access_t.SND_PCM_ACCESS_RW_INTERLEAVED);
 
         _ = c.snd_pcm_hw_params_set_format(self.handle, params,
-            c.snd_pcm_format_t.SND_PCM_FORMAT_S16_BE);
-            //c.snd_pcm_format_t.SND_PCM_FORMAT_S16_LE);
+            c.snd_pcm_format_t.SND_PCM_FORMAT_S16_LE);
 
         _ = c.snd_pcm_hw_params_set_channels(self.handle, params, self.channels);
 
@@ -75,34 +75,39 @@ pub const SoundOut = struct {
     }
 
     fn loop(self: *Self) void {
-        var i: i32 = 0;
+        var total_frames: usize = 0;
         var j: usize = 0;
         var y: f64 = 0;
         var x: f64 = 0;
-        var sample: i32 = 0;
+        //var sample: i32 = 0;
+        var sample: [4]u8 = undefined;
 
         self.gTime = 0.0;
         const timeStep: f64 = 1.0/@intToFloat(f64, self.rate);
+        const snare = @embedFile("../samples/Snare_s16le.raw");
+        std.log.info("size of snare in u8: {}", .{snare.len});
 
-        while (self.running) : (i+=1){
+        while (self.running) {
             // get the user function
-            y = math.clamp(self.user_fn.?(self.gTime), -1.0, 1.0);
-            sample = @floatToInt(i32, self.amp * y);
+//            y = math.clamp(self.user_fn.?(self.gTime), -1.0, 1.0);
+//            sample = @floatToInt(i32, self.amp * y);
 
-//            self.buffer[0 + 4*j] = @truncate(i8, sample >> 8);
-//            self.buffer[1 + 4*j] = @truncate(i8, (sample));
-//            self.buffer[2 + 4*j] = @truncate(i8, sample >> 8);
-//            self.buffer[3 + 4*j] = @truncate(i8, (sample));
-            self.buffer[1 + 4*j] = @truncate(i8, sample >> 8);
-            self.buffer[0 + 4*j] = @truncate(i8, (sample));
-            self.buffer[3 + 4*j] = @truncate(i8, sample >> 8);
-            self.buffer[2 + 4*j] = @truncate(i8, (sample));
+            sample = self.user_fn.?(self.gTime);
+            self.buffer[0 + 4*j] = @bitCast(i8, sample[0]);
+            self.buffer[1 + 4*j] = @bitCast(i8, sample[1]);
+            self.buffer[2 + 4*j] = @bitCast(i8, sample[2]);
+            self.buffer[3 + 4*j] = @bitCast(i8, sample[3]);
+            //self.buffer[0 + 4*j] = @truncate(i8, (sample));
+            //self.buffer[1 + 4*j] = @truncate(i8, sample >> 8);
+            //self.buffer[2 + 4*j] = @truncate(i8, (sample));
+            //self.buffer[3 + 4*j] = @truncate(i8, sample >> 8);
 
             self.gTime += timeStep;
 
             // If we have a buffer full of samples, write 1 period of 
             //samples to the sound card
             j+=1;
+            total_frames+=1;
             if(j == self.frames){
                 j = @intCast(usize, c.snd_pcm_writei(self.handle, &self.buffer[0], self.frames));
 

@@ -16,27 +16,43 @@ const keyboard =
 \\
 ;
 
-var inst: instrument.Instrument = instrument.Bell();
+var inst: instrument.Instrument = instrument.Sampler();
 
 const alloc = std.heap.page_allocator;
 var allNotes: [input.key_states.len]notes.Note = undefined;
 
+var ss: soundout.SoundOut = undefined;
+
 fn makeNoise(t: f64) f64 {
+
     var mixedout: f64 = 0.0;
     for (allNotes) |*note| {
         if (note.active)
             mixedout += inst.sound(t, note);
     }
-    //mixedout = if (allNotes[3].active) inst.sound(t, &allNotes[3]) else 0.0;
     return mixedout * 0.2;
+}
+
+const snare = @embedFile("../samples/Snare_s16le.raw");
+fn makeNoise2(t: f64) [4]u8 {
+    const len = @intToFloat(f64, snare.len);
+    const guess = @floatToInt(usize, t * 44100);
+    const i = @mod(guess, snare.len/4);
+    const sample_bytes = [_]u8{
+        snare[0 + 4*i],
+        snare[1 + 4*i], 
+        snare[2 + 4*i], 
+        snare[3 + 4*i],
+    };
+    return sample_bytes;
 }
 
 pub fn main() anyerror!void {
     try input.init();
     defer input.deinit();
     // note we are playing
-    var ss = soundout.SoundOut.init();
-    ss.user_fn = makeNoise;
+    ss = soundout.SoundOut.init();
+    ss.user_fn = makeNoise2;
     try ss.setup();
     defer ss.deinit();
 
