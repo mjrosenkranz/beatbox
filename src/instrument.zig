@@ -24,7 +24,7 @@ pub fn Bell() Instrument {
     };
 }
 fn bellSound(t: f64, env: envelope.ASDR, n: notes.Note) f64 {
-    return env.getAmp(t) * (
+    return env.getAmp(t, n.on, n.off) * (
         1.0 * osc.osc(t, notes.freqFromScale(n.id + 12, .chromatic), .sin, 5.0, 0.001) +
         0.5 * osc.osc(t, notes.freqFromScale(n.id + 24, .chromatic), .sin, 0.0, 0.0) +
         0.25 * osc.osc(t,notes.freqFromScale(n.id + 36, .chromatic), .sin, 0.0, 0.0)

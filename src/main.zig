@@ -50,10 +50,10 @@ pub fn main() anyerror!void {
             if (input.key_states[k] == .Pressed) {
                 //@atomicStore(*notes.Note, &freq, baseFreq * std.math.pow(f64, d12thRootOf2, @intToFloat(f64, k)), .SeqCst);
                 note.id = @intCast(u8, k);
-                inst.env.noteOn(ss.getTime());
+                note.on = ss.getTime();
             }
             if (input.key_states[k] == .Released) {
-                inst.env.noteOff(ss.getTime());
+                note.off = ss.getTime();
             }
         }
 
