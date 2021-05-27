@@ -25,8 +25,8 @@ fn w(hertz: f64) f64 {
     return 2.0 * math.pi * hertz;
 }
 
-pub fn osc(t: f64, hertz: f64, oscType: OscType, LFOHertz: f64, LFOAmp: f64) f64 {
-    const freq = w(hertz) * t + LFOAmp * hertz * @sin(w(LFOHertz) * t);
+pub fn osc(t: f64, hertz: f64, oscType: OscType, LFO: struct {hertz: f64 = 0.0, amp: f64 = 0.0}) f64 {
+    const freq = w(hertz) * t + LFO.amp * hertz * @sin(w(LFO.hertz) * t);
     return switch (oscType) {
         .sin => @sin(freq),
         .sqr => {
