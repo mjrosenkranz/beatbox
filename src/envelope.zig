@@ -1,3 +1,5 @@
+const notes = @import("notes.zig");
+
 pub const ASDR = struct {
     attack: f64 = 0.1,
     decay: f64 = 0.1,
@@ -8,13 +10,13 @@ pub const ASDR = struct {
 
     const Self = @This();
 
-    pub fn getAmp(self: Self, t: f64, on: f64, off: f64) f64 {
+    pub fn getAmp(self: Self, t: f64, n: *notes.Note) f64 {
         var amp: f64 = 0.0;
         // emplitude for release
         var ramp: f64 = 0.0;
 
-        if (on > off) {
-            const lifeTime = t - on;
+        if (n.on > n.off) {
+            const lifeTime = t - n.on;
             // attack
             if (lifeTime <= self.attack) {
                 amp = (lifeTime / self.attack) * self.startAmp;
@@ -22,8 +24,6 @@ pub const ASDR = struct {
 
             // decay
             if (lifeTime > self.attack and lifeTime <= (self.attack + self.decay)) {
-                //     | how far we are into decay   | difference in amp    | add the initial amp
-                //     V                             V                      V
                 amp = ((lifeTime - self.attack)/self.decay) * (self.sustainAmp - self.startAmp) + self.startAmp;
             }
 
@@ -32,7 +32,7 @@ pub const ASDR = struct {
                 amp = self.sustainAmp;
             }
         } else {
-            const lifeTime = off - on;
+            const lifeTime = n.off - n.on;
             // attack
             if (lifeTime <= self.attack) {
                 ramp = (lifeTime / self.attack) * self.startAmp;
@@ -40,8 +40,6 @@ pub const ASDR = struct {
 
             // decay
             if (lifeTime > self.attack and lifeTime <= (self.attack + self.decay)) {
-                //     | how far we are into decay   | difference in amp    | add the initial amp
-                //     V                             V                      V
                 ramp = ((lifeTime - self.attack)/self.decay) * (self.sustainAmp - self.startAmp) + self.startAmp;
             }
 
@@ -50,8 +48,13 @@ pub const ASDR = struct {
                 ramp = self.sustainAmp;
             }
             // R
-            amp = ((t - off) / self.release) * (0.0 - ramp) + ramp;
+            amp = ((t - n.off) / self.release) * (0.0 - ramp) + ramp;
+            // deactivate the note if we have finished the release
+            if (t > n.off + self.release)
+                n.active = false;
+
         }
+
 
 
         if (amp < 0.0001) {

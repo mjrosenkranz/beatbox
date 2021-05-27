@@ -4,7 +4,7 @@ const math = std.math;
 const soundout = @import("soundout.zig");
 const input = @import("input.zig");
 const instrument = @import("instrument.zig");
-const notes = @import("note.zig");
+const notes = @import("notes.zig");
 
 const keyboard = 
 \\|   |   |   |   |   | |   |   |   |   | |   | |   |   |   |
@@ -19,8 +19,10 @@ const keyboard =
 var note: notes.Note = undefined;
 var inst: instrument.Instrument = instrument.Bell();
 
+//var noteArr: std.ArrayList(note) = undefined;
+
 fn makeNoise(t: f64) f64 {
-    return inst.sound(t, note);
+    return inst.sound(t, &note);
 }
 
 pub fn main() anyerror!void {
@@ -41,6 +43,7 @@ pub fn main() anyerror!void {
 
     var currKey: i8 = -1;
     var quit = false;
+    var was_active = false;
     while (!quit) {
         if (!input.update())
             quit = true;
@@ -48,13 +51,17 @@ pub fn main() anyerror!void {
         var k: usize = 0;
         while (k < input.key_states.len) : (k+=1) {
             if (input.key_states[k] == .Pressed) {
-                //@atomicStore(*notes.Note, &freq, baseFreq * std.math.pow(f64, d12thRootOf2, @intToFloat(f64, k)), .SeqCst);
                 note.id = @intCast(u8, k);
                 note.on = ss.getTime();
+                note.active = true;
             }
             if (input.key_states[k] == .Released) {
                 note.off = ss.getTime();
             }
+            if (was_active and !note.active) {
+                std.log.info("note {} no longer active", .{note.id});
+            }
+            was_active = note.active;
         }
 
     }
