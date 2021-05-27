@@ -17,9 +17,9 @@ pub const Scale = enum {
     chromatic,
 };
 
-pub fn freqFromScale(id: u8, scale: Scale) f64 {
-    return switch (scale) {
-        .chromatic => 256 * math.pow(f64, 1.0594630943592952645618252949463, @intToFloat(f64, id)),
+pub fn freqFromScale(args: struct {id: u8, scale: Scale = .chromatic, octave: u8 = 0}) f64 {
+    return switch (args.scale) {
+        .chromatic => 256 * math.pow(f64, 1.0594630943592952645618252949463, @intToFloat(f64, args.id + 12 * args.octave)),
         //else => unreachable,
     };
 }

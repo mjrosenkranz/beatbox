@@ -16,13 +16,19 @@ const keyboard =
 \\
 ;
 
-var note: notes.Note = undefined;
 var inst: instrument.Instrument = instrument.Bell();
 
-//var noteArr: std.ArrayList(note) = undefined;
+const alloc = std.heap.page_allocator;
+var allNotes: [input.key_states.len]notes.Note = undefined;
 
 fn makeNoise(t: f64) f64 {
-    return inst.sound(t, &note);
+    var mixedout: f64 = 0.0;
+    for (allNotes) |*note| {
+        if (note.active)
+            mixedout += inst.sound(t, note);
+    }
+    //mixedout = if (allNotes[3].active) inst.sound(t, &allNotes[3]) else 0.0;
+    return mixedout * 0.2;
 }
 
 pub fn main() anyerror!void {
@@ -34,6 +40,13 @@ pub fn main() anyerror!void {
     try ss.setup();
     defer ss.deinit();
 
+
+    // setup notes array
+    var i: usize = 0;
+    while (i < input.key_states.len) : (i+=1) { 
+        allNotes[i] = .{.id = @intCast(u8, i), .active = false};
+    }
+
     // change volue
     inst.volume = 0.1;
 
@@ -43,7 +56,6 @@ pub fn main() anyerror!void {
 
     var currKey: i8 = -1;
     var quit = false;
-    var was_active = false;
     while (!quit) {
         if (!input.update())
             quit = true;
@@ -51,18 +63,12 @@ pub fn main() anyerror!void {
         var k: usize = 0;
         while (k < input.key_states.len) : (k+=1) {
             if (input.key_states[k] == .Pressed) {
-                note.id = @intCast(u8, k);
-                note.on = ss.getTime();
-                note.active = true;
+                allNotes[k].on = ss.getTime();
+                allNotes[k].active = true;
             }
             if (input.key_states[k] == .Released) {
-                note.off = ss.getTime();
+                allNotes[k].off = ss.getTime();
             }
-            if (was_active and !note.active) {
-                std.log.info("note {} no longer active", .{note.id});
-            }
-            was_active = note.active;
         }
-
     }
 }

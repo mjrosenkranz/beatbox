@@ -55,8 +55,6 @@ pub const ASDR = struct {
 
         }
 
-
-
         if (amp < 0.0001) {
             return 0.0;
         }
