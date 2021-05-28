@@ -21,11 +21,11 @@ const OscType = enum {
 };
 
 /// angular velocity helper func
-fn w(hertz: f64) f64 {
+fn w(hertz: f64) callconv(.Inline) f64 {
     return 2.0 * math.pi * hertz;
 }
 
-pub fn osc(t: f64, hertz: f64, oscType: OscType, LFO: struct {hertz: f64 = 0.0, amp: f64 = 0.0}) f64 {
+pub fn osc(t: f64, hertz: f64, oscType: OscType, LFO: struct {hertz: f64 = 0.0, amp: f64 = 0.0}) callconv(.Inline)  f64 {
     const freq = w(hertz) * t + LFO.amp * hertz * @sin(w(LFO.hertz) * t);
     return switch (oscType) {
         .sin => @sin(freq),

@@ -139,7 +139,7 @@ pub const SoundOut = struct {
         }
     }
 
-    pub fn getTime(self: Self) f64 {
+    pub fn getTime(self: Self) callconv(.Inline) f64 {
         return self.gTime;
     }
 
@@ -152,8 +152,3 @@ pub const SoundOut = struct {
 
     }
 };
-
-
-fn dummyfn(x: f64) f64 {
-    return 0.0;
-}
