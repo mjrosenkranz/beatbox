@@ -53,19 +53,18 @@ fn makeNoise2(t: f64) soundout.Frame {
     };
     const i16s = @bitCast([2]i16, snare_bytes);
     //get number -1 to 1 for each i16
-    var f: soundout.Frame = .{
+    var frame: soundout.Frame = .{
         .l = @intToFloat(f64, i16s[0]) / 65536.0,
         .r = @intToFloat(f64, i16s[1]) / 65536.0,
     };
 
     var mixedout: f64 = 0.0;
     for (allNotes) |*note| {
-        if (note.active)
-            mixedout += inst.sound(t, note);
+        if (note.active) {
+            frame = frame.add(inst.sound(t, note));
+        }
     }
-    f.l += mixedout;
-    f.r += mixedout;
-    return f;
+    return frame;
 }
 
 pub fn main() anyerror!void {

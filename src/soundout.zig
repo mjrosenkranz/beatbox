@@ -16,6 +16,33 @@ const alloc = std.heap.page_allocator;
 pub const Frame = packed struct {
     l: f64 = 0.0,
     r: f64 = 0.0,
+
+    const Self = @This();
+
+    /// multiply both values by amount
+    pub fn times(self: Self, val: f64) callconv(.Inline) Self {
+    //pub fn times(self: *Self, val: struct {l: f64 = 1.0, r: f64}) callconv(.Inline) void {
+        return .{
+            .l = self.l * val,
+            .r = self.r * val,
+        };
+    }
+
+    /// add the values of two frames together
+    pub fn add(self: Self, other: Self) callconv(.Inline) Self {
+        return .{
+            .l = self.l + other.l,
+            .r = self.r + other.r,
+        };
+    }
+
+    /// clamp the values in the frame to -1 to 1
+    pub fn clip(self: Self) callconv(.Inline) Self {
+        return .{
+            .l = math.clamp(self.l, -1.0, 1.0),
+            .r = math.clamp(self.r, -1.0, 1.0),
+        };
+    }
 };
 
 pub const SoundOut = struct {
@@ -92,37 +119,8 @@ pub const SoundOut = struct {
         const timeStep: f64 = 1.0/@intToFloat(f64, self.rate);
 
         while (self.running) {
-            // get the user function
-//            y = math.clamp(self.user_fn.?(self.gTime), -1.0, 1.0);
-
-            const ff = self.user_fn.?(self.gTime);
-            //sample = self.user_fn.?(self.gTime);
-            //self.buffer[0 + 4*j] = @bitCast(i8, sample[0]);
-            //self.buffer[1 + 4*j] = @bitCast(i8, sample[1]);
-            //self.buffer[2 + 4*j] = @bitCast(i8, sample[2]);
-            //self.buffer[3 + 4*j] = @bitCast(i8, sample[3]);
-
-            // get two i16s from the buffer
-            //const i16s = @bitCast([2]i16, sample);
-            // get number 0 to 1 for each i16
-            //const floats = [_]f32 {
-            //    @intToFloat(f32, i16s[0]) / 65536.0,
-            //    @intToFloat(f32, i16s[1]) / 65536.0,
-            //};
-            //// translate back into integer samples
-            //const isample = [_]i32 {
-            //    @floatToInt(i32, self.amp * floats[0]),
-            //    @floatToInt(i32, self.amp * floats[1]),
-            //};
-            self.buffer[j] = ff;
-            //self.buffer[0 + 2*j] = ff.l;
-            //self.buffer[1 + 2*j] = ff.r;
-
-            //self.buffer[0 + 4*j] = @truncate(i8, (isample[0]));
-            //self.buffer[1 + 4*j] = @truncate(i8, isample[0] >> 8);
-            //self.buffer[2 + 4*j] = @truncate(i8, (isample[1]));
-            //self.buffer[3 + 4*j] = @truncate(i8, isample[1] >> 8);
-
+            var frame = self.user_fn.?(self.gTime).clip();
+            self.buffer[j] = frame;
             self.gTime += timeStep;
 
             // If we have a buffer full of samples, write 1 period of 
