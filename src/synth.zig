@@ -4,7 +4,7 @@ const envelope = @import("envelope.zig");
 const notes = @import("notes.zig");
 const osc = @import("oscillator.zig");
 
-pub const Instrument = struct {
+pub const Synth = struct {
     volume: f64 = 1.0,
     env: envelope.ASDR,
     soundFn: fn (t: f64, env: envelope.ASDR, n: *notes.Note) soundout.Frame,
@@ -15,28 +15,7 @@ pub const Instrument = struct {
     }
 };
 
-//const snare = @embedFile("../samples/Snare_s8le.raw");
-pub fn Sampler() Instrument {
-    return .{
-        .env = .{
-            .attack  = 0.01,
-            .decay   = 0.0,
-            .sustainAmp = 1.0,
-            .release = 0.0,
-        },
-        .soundFn = sampleSound,
-    };
-}
-
-const snare = @embedFile("../samples/Snare_s16le.raw");
-fn sampleSound(t: f64, env: envelope.ASDR, n: *notes.Note) soundout.Frame {
-    //return env.getAmp(t, n) sample at point;
-    // time since sample started playing
-
-    return .{};
-}
-
-pub fn Bell() Instrument {
+pub fn Bell() Synth {
     return .{
         .env = .{
             .attack  = 0.01,
@@ -46,6 +25,7 @@ pub fn Bell() Instrument {
         .soundFn = bellSound,
     };
 }
+
 fn bellSound(t: f64, env: envelope.ASDR, n: *notes.Note) soundout.Frame {
     const val = env.getAmp(t, n) * (
         1.0 * osc.osc(t, notes.freqFromScale(.{.id=n.id, .octave=1}), .sin, .{.hertz=5.0, .amp =0.001}) +

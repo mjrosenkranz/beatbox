@@ -70,6 +70,13 @@ pub const SoundOut = struct {
         };
     }
 
+    // helper function to verify alsa functions
+    fn validate(err: c_int) void {
+        if (err < 0) {
+            std.debug.warn("Alsa error: {s}\n", .{c.snd_strerror(err)});
+        }
+    }
+
     pub fn setup(self: *Self) !void {
         var params: ?*c.snd_pcm_hw_params_t = null;
         var rc: i32 = 0;
@@ -86,9 +93,9 @@ pub const SoundOut = struct {
 
         _ = c.snd_pcm_hw_params_set_access(self.handle, params, c.snd_pcm_access_t.SND_PCM_ACCESS_RW_INTERLEAVED);
 
-        _ = c.snd_pcm_hw_params_set_format(self.handle, params,
+        validate(c.snd_pcm_hw_params_set_format(self.handle, params,
+            c.snd_pcm_format_t.SND_PCM_FORMAT_FLOAT64_LE));
             //c.snd_pcm_format_t.SND_PCM_FORMAT_S16_LE);
-            c.snd_pcm_format_t.SND_PCM_FORMAT_FLOAT64_LE);
 
         _ = c.snd_pcm_hw_params_set_channels(self.handle, params, self.channels);
 
@@ -104,6 +111,8 @@ pub const SoundOut = struct {
         }
 
         self.buffer = try alloc.alloc(Frame, self.frames * @sizeOf(Frame) * self.channels);
+
+        std.log.info("Starting new thread", .{});
         self.thread = try std.Thread.spawn(loop, self);
     }
 
