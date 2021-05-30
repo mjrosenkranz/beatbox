@@ -170,7 +170,6 @@ pub fn update() bool {
             c.XCB_KEY_PRESS => {
                 const kev = @ptrCast(*c.xcb_key_press_event_t, event);
                 updateKey(kev.*.detail, true);
-                std.log.info("key pressed", .{});
             },
             c.XCB_KEY_RELEASE => {
                 const kev = @ptrCast(*c.xcb_key_press_event_t, event);

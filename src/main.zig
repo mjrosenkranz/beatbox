@@ -23,20 +23,15 @@ const alloc = std.heap.page_allocator;
 var allNotes: [input.key_states.len]notes.Note = undefined;
 
 var ss: soundout.SoundOut = undefined;
-
 var samp = sampler.Sampler{
-    .sample = {
-        .data = @embedFile("../samples/snare.raw");
-    },
+    .sample = .{},
 };
 
-fn makeNoise2(t: f64) soundout.Frame {
-
+fn makeNoise(t: f64) soundout.Frame {
     var frame: soundout.Frame = .{};
-    var mixedout: f64 = 0.0;
     for (allNotes) |*note| {
         if (note.active) {
-            frame = frame.add(sinst.sound(t, note));
+            frame = frame.add(samp.sound(t, note));
         }
     }
     return frame;
@@ -44,9 +39,12 @@ fn makeNoise2(t: f64) soundout.Frame {
 
 pub fn main() anyerror!void {
     ss = soundout.SoundOut.init();
-    ss.user_fn = makeNoise2;
+
+    ss.user_fn = makeNoise;
+
     try ss.setup();
     defer ss.deinit();
+
     try input.init();
     defer input.deinit();
     // note we are playing
