@@ -29,7 +29,7 @@ fn makeNoise(t: f64) sound.Frame {
     var f: sound.Frame = .{};
     for (allNotes) |*note| {
         if (note.active) {
-            f= f.add(sampler.sound(t, note));
+            f= f.add(synth.sound(t, note));
         }
     }
     return f;
