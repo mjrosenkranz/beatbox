@@ -85,7 +85,7 @@ pub const SoundOut = struct {
 
     fn loop(self: *Self) void {
         var total_frames: usize = 0;
-        var j: usize = 0;
+        var j: i32 = 0;
         var y: f64 = 0;
         var x: f64 = 0;
 
@@ -94,19 +94,19 @@ pub const SoundOut = struct {
 
         while (self.running) {
             var f = self.user_fn.?(self.gTime).clip();
-            self.buffer[0 + j*2] = @floatToInt(i16, f.l * 32767);
-            self.buffer[1 + j*2] = @floatToInt(i16, f.r * 32767);
+            self.buffer[0 + @intCast(usize, j)*2] = @floatToInt(i16, f.l * 32767);
+            self.buffer[1 + @intCast(usize, j)*2] = @floatToInt(i16, f.r * 32767);
             self.gTime += timeStep;
 
             // If we have a buffer full of samples, write 1 period of 
             //samples to the sound card
             j+=1;
             if(j == self.frames){
-                j = @intCast(usize, c.snd_pcm_writei(self.handle, &self.buffer[0], self.frames));
+                j = @intCast(i32, c.snd_pcm_writei(self.handle, &self.buffer[0], self.frames));
 
                 // Check for under runs
                 if (j < 0){
-                    c.snd_pcm_prepare(self.handle);
+                    _ = c.snd_pcm_prepare(self.handle);
                 }
                 j = 0;
             }
