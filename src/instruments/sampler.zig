@@ -1,12 +1,12 @@
 const std = @import("std");
 const fs = std.fs;
-const soundout = @import("soundout.zig");
+const Frame = @import("../sound.zig").Frame;
 const notes = @import("notes.zig");
 
 // TODO: functions for converting samples
 pub const Sample = struct {
     // TODO change this to an array of frames
-    data: []soundout.Frame = undefined,
+    data: []Frame = undefined,
     alloc: *std.mem.Allocator,
 
     const Self = @This();
@@ -16,12 +16,12 @@ pub const Sample = struct {
             .alloc = a,
         };
 
-        const snareFile = try fs.cwd().openFile("./samples/snare.raw", fs.File.OpenFlags{ .read = true });
+        const snareFile = try fs.cwd().openFile(filename, fs.File.OpenFlags{ .read = true });
         defer snareFile.close();
         const reader = snareFile.reader;
         const stat = try snareFile.stat();
 
-        ret.data = try a.alloc(soundout.Frame, stat.size/@sizeOf(soundout.Frame));
+        ret.data = try a.alloc(Frame, stat.size/@sizeOf(Frame));
         var buf = try a.alloc(u8, stat.size);
 
         defer a.free(buf);
@@ -55,7 +55,7 @@ pub const Sampler = struct {
     sample: Sample,
 
     const Self = @This();
-    pub fn sound(self: Self, t: f64, n: *notes.Note) soundout.Frame {
+    pub fn sound(self: Self, t: f64, n: *notes.Note) Frame {
         const lifeTime = t - n.on;
         // index into the sample based on the time
         const i = @floatToInt(usize, lifeTime * 44100);

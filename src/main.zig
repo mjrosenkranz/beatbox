@@ -2,13 +2,12 @@ const std = @import("std");
 const os = std.os;
 const fs = std.fs;
 const math = std.math;
-const soundout = @import("soundout.zig");
-const input = @import("input.zig");
-const synth = @import("synth.zig");
-const sampler = @import("sampler.zig");
-const notes = @import("notes.zig");
 
-const keyboard = 
+const sound = @import("sound.zig");
+const keyboard = @import("keyboard.zig");
+const inst = @import("instruments.zig");
+
+const kbstr = 
 \\|   |   |   |   |   | |   |   |   |   | |   | |   |   |   |
 \\|   | S |   |   | F | | G |   |   | J | | K | | L |   |   |
 \\|   |___|   |   |___| |___|   |   |___| |___| |___|   |   |__
@@ -18,48 +17,45 @@ const keyboard =
 \\
 ;
 
-var sinst: synth.Synth = synth.Bell();
+var synth: inst.Synth = inst.Bell();
 
-const alloc = std.heap.page_allocator;
-var allNotes: [input.key_states.len]notes.Note = undefined;
+const heap = std.heap.page_allocator;
+var allNotes: [keyboard.key_states.len]inst.Note = undefined;
 
-var ss: soundout.SoundOut = undefined;
-var samp: sampler.Sampler = undefined;
-fn makeNoise(t: f64) soundout.Frame {
-    var frame: soundout.Frame = .{};
+var ss: sound.output = undefined;
+var sampler: inst.Sampler = undefined;
+
+fn makeNoise(t: f64) sound.Frame {
+    var f: sound.Frame = .{};
     for (allNotes) |*note| {
         if (note.active) {
-            frame = frame.add(samp.sound(t, note));
+            f= f.add(sampler.sound(t, note));
         }
     }
-    return frame;
+    return f;
 }
 
 
 pub fn main() anyerror!void {
-    // read in a sample
-    var s = try sampler.Sample.init("", alloc);
-    defer s.deinit();
-    std.log.info("frames: {}", .{s.data.len});
 
-    samp = .{
+    sampler = .{
         .volume = 0.8,
-        .sample = s,
+        .sample = try inst.Sample.init("./samples/snare.raw", heap),
     };
+    defer sampler.sample.deinit();
 
-    sinst.volume = 0.2;
 
-    ss = soundout.SoundOut.init();
-
+    ss = sound.output.init();
     ss.user_fn = makeNoise;
 
     try ss.setup();
     defer ss.deinit();
 
-    try input.init();
-    defer input.deinit();
-    // note we are playing
+    try keyboard.init();
+    defer keyboard.deinit();
 
+    // change the synth volume
+    synth.volume = 0.2;
 
     // setup notes array
     var i: usize = 0;
@@ -74,21 +70,21 @@ pub fn main() anyerror!void {
 
     // TODO:clear screen and write the keyboard with other information
     // write our lil keyboard to the screen
-    _ = try std.io.getStdErr().write(keyboard);
+    _ = try std.io.getStdErr().write(kbstr);
 
     var currKey: i8 = -1;
     var quit = false;
     while (!quit) {
-        if (!input.update())
+        if (!keyboard.update())
             quit = true;
 
         var k: usize = 0;
-        while (k < input.key_states.len) : (k+=1) {
-            if (input.key_states[k] == .Pressed) {
+        while (k < keyboard.key_states.len) : (k+=1) {
+            if (keyboard.key_states[k] == .Pressed) {
                 allNotes[k].on = ss.getTime();
                 allNotes[k].active = true;
             }
-            if (input.key_states[k] == .Released) {
+            if (keyboard.key_states[k] == .Released) {
                 allNotes[k].off = ss.getTime();
             }
         }

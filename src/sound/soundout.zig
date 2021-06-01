@@ -1,6 +1,5 @@
 const std = @import("std");
-const math = std.math;
-const instrument = @import("instrument.zig");
+const frame = @import("frame.zig");
 const c = @cImport({
     @cInclude("alsa/asoundlib.h");
     @cDefine("ALSA_PCM_NEW_HW_PARAMS_API", "1");
@@ -13,46 +12,14 @@ const AlsaError = error {
 
 const alloc = std.heap.page_allocator;
 
-pub const Frame = packed struct {
-    l: f32 = 0.0,
-    r: f32 = 0.0,
-
-    const Self = @This();
-
-    /// multiply both values by amount
-    pub fn times(self: Self, val: f32) callconv(.Inline) Self {
-        return .{
-            .l = self.l * val,
-            .r = self.r * val,
-        };
-    }
-
-    /// add the values of two frames together
-    pub fn add(self: Self, other: Self) callconv(.Inline) Self {
-        return .{
-            .l = self.l + other.l,
-            .r = self.r + other.r,
-        };
-    }
-
-    /// clamp the values in the frame to -1 to 1
-    pub fn clip(self: Self) callconv(.Inline) Self {
-        return .{
-            .l = math.clamp(self.l, -1, 1),
-            .r = math.clamp(self.l, -1, 1),
-        };
-    }
-};
-
 pub const SoundOut = struct {
     rate: u32,
     amp: f64,
     channels: u8,
     handle: ?*c.snd_pcm_t = null,
-    //buffer: []Frame = undefined,
     buffer: []i16 = undefined,
     frames: c.snd_pcm_uframes_t = 0,
-    user_fn: ?fn(f64) Frame = null,
+    user_fn: ?fn(f64) frame.Frame = null,
     /// global time
     gTime: f64 = 0.0,
     thread: *std.Thread = undefined,
@@ -110,7 +77,6 @@ pub const SoundOut = struct {
             return AlsaError.FailedToSetHardware;
         }
 
-        //self.buffer = try alloc.alloc(Frame, self.frames);
         self.buffer = try alloc.alloc(i16, self.frames * self.channels);
 
         std.log.info("Starting new thread", .{});
@@ -127,9 +93,9 @@ pub const SoundOut = struct {
         const timeStep: f64 = 1.0/@intToFloat(f64, self.rate);
 
         while (self.running) {
-            var frame = self.user_fn.?(self.gTime).clip();
-            self.buffer[0 + j*2] = @floatToInt(i16, frame.l * 32767);
-            self.buffer[1 + j*2] = @floatToInt(i16, frame.r * 32767);
+            var f = self.user_fn.?(self.gTime).clip();
+            self.buffer[0 + j*2] = @floatToInt(i16, f.l * 32767);
+            self.buffer[1 + j*2] = @floatToInt(i16, f.r * 32767);
             self.gTime += timeStep;
 
             // If we have a buffer full of samples, write 1 period of 
