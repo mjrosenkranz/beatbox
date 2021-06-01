@@ -1,14 +1,57 @@
+const std = @import("std");
+const fs = std.fs;
 const soundout = @import("soundout.zig");
 const notes = @import("notes.zig");
 
 // TODO: functions for converting samples
 pub const Sample = struct {
     // TODO change this to an array of frames
-    data: [600076:0]u8 = @embedFile("../samples/snare.raw").*,
+    data: []soundout.Frame = undefined,
+    alloc: *std.mem.Allocator,
+
+    const Self = @This();
+
+    pub fn init(filename: []const u8, a: *std.mem.Allocator) !Self {
+        var ret = Self{
+            .alloc = a,
+        };
+
+        const snareFile = try fs.cwd().openFile("./samples/snare.raw", fs.File.OpenFlags{ .read = true });
+        defer snareFile.close();
+        const reader = snareFile.reader;
+        const stat = try snareFile.stat();
+
+        ret.data = try a.alloc(soundout.Frame, stat.size/@sizeOf(soundout.Frame));
+        var buf = try a.alloc(u8, stat.size);
+
+        defer a.free(buf);
+        _ = try snareFile.readAll(buf);
+
+        var i: usize = 0;
+        while (i < ret.data.len):(i+=1) {
+            ret.data[i] = .{
+                .l = @intToFloat(f32, @bitCast(i16, [_]u8{
+                    buf[0 + 4*i],
+                    buf[1 + 4*i]
+                })) / 32767.0,
+
+                .r = @intToFloat(f32, @bitCast(i16,[_]u8{
+                    buf[2 + 4*i], 
+                    buf[3 + 4*i],
+                })) / 32767.0,
+            };
+        }
+
+        return ret;
+    }
+
+    pub fn deinit(self: Self) void {
+        self.alloc.free(self.data);
+    }
 };
 
 pub const Sampler = struct {
-    volume: f64 = 1.0,
+    volume: f32 = 1.0,
     sample: Sample,
 
     const Self = @This();
@@ -17,27 +60,11 @@ pub const Sampler = struct {
         // index into the sample based on the time
         const i = @floatToInt(usize, lifeTime * 44100);
 
-        if (i >= self.sample.data.len/4) {
+        if (i >= self.sample.data.len) {
             n.active = false;
             return .{};
         }
 
-        const sample_bytes = [_]u8{
-            self.sample.data[0 + 4*i],
-            self.sample.data[1 + 4*i], 
-            self.sample.data[2 + 4*i], 
-            self.sample.data[3 + 4*i],
-        };
-
-
-        const i16s = @bitCast([2]i16, sample_bytes);
-
-        //get number -1 to 1 for each i16
-        var frame: soundout.Frame = .{
-            .l = @intToFloat(f64, i16s[0]) / 65536.0,
-            .r = @intToFloat(f64, i16s[1]) / 65536.0,
-        };
-
-        return frame.times(self.volume);
+        return self.sample.data[i].times(self.volume);
     }
 };

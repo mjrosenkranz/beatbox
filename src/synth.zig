@@ -5,7 +5,7 @@ const notes = @import("notes.zig");
 const osc = @import("oscillator.zig");
 
 pub const Synth = struct {
-    volume: f64 = 1.0,
+    volume: f32 = 1.0,
     env: envelope.ASDR,
     soundFn: fn (t: f64, env: envelope.ASDR, n: *notes.Note) soundout.Frame,
 
@@ -34,7 +34,7 @@ fn bellSound(t: f64, env: envelope.ASDR, n: *notes.Note) soundout.Frame {
     );
 
     return .{
-        .l = val,
-        .r = val,
+        .l = @floatCast(f32, val),
+        .r = @floatCast(f32, val),
     };
 }

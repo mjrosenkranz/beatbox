@@ -14,14 +14,13 @@ const AlsaError = error {
 const alloc = std.heap.page_allocator;
 
 pub const Frame = packed struct {
-    l: f64 = 0.0,
-    r: f64 = 0.0,
+    l: f32 = 0.0,
+    r: f32 = 0.0,
 
     const Self = @This();
 
     /// multiply both values by amount
-    pub fn times(self: Self, val: f64) callconv(.Inline) Self {
-    //pub fn times(self: *Self, val: struct {l: f64 = 1.0, r: f64}) callconv(.Inline) void {
+    pub fn times(self: Self, val: f32) callconv(.Inline) Self {
         return .{
             .l = self.l * val,
             .r = self.r * val,
@@ -39,8 +38,8 @@ pub const Frame = packed struct {
     /// clamp the values in the frame to -1 to 1
     pub fn clip(self: Self) callconv(.Inline) Self {
         return .{
-            .l = math.clamp(self.l, -1.0, 1.0),
-            .r = math.clamp(self.r, -1.0, 1.0),
+            .l = math.clamp(self.l, -1, 1),
+            .r = math.clamp(self.l, -1, 1),
         };
     }
 };
@@ -50,7 +49,8 @@ pub const SoundOut = struct {
     amp: f64,
     channels: u8,
     handle: ?*c.snd_pcm_t = null,
-    buffer: []Frame = undefined,
+    //buffer: []Frame = undefined,
+    buffer: []i16 = undefined,
     frames: c.snd_pcm_uframes_t = 0,
     user_fn: ?fn(f64) Frame = null,
     /// global time
@@ -94,8 +94,8 @@ pub const SoundOut = struct {
         _ = c.snd_pcm_hw_params_set_access(self.handle, params, c.snd_pcm_access_t.SND_PCM_ACCESS_RW_INTERLEAVED);
 
         validate(c.snd_pcm_hw_params_set_format(self.handle, params,
-            c.snd_pcm_format_t.SND_PCM_FORMAT_FLOAT64_LE));
-            //c.snd_pcm_format_t.SND_PCM_FORMAT_S16_LE);
+            //c.snd_pcm_format_t.SND_PCM_FORMAT_FLOAT));
+            c.snd_pcm_format_t.SND_PCM_FORMAT_S16_LE));
 
         _ = c.snd_pcm_hw_params_set_channels(self.handle, params, self.channels);
 
@@ -110,7 +110,8 @@ pub const SoundOut = struct {
             return AlsaError.FailedToSetHardware;
         }
 
-        self.buffer = try alloc.alloc(Frame, self.frames * @sizeOf(Frame) * self.channels);
+        //self.buffer = try alloc.alloc(Frame, self.frames);
+        self.buffer = try alloc.alloc(i16, self.frames * self.channels);
 
         std.log.info("Starting new thread", .{});
         self.thread = try std.Thread.spawn(loop, self);
@@ -121,21 +122,19 @@ pub const SoundOut = struct {
         var j: usize = 0;
         var y: f64 = 0;
         var x: f64 = 0;
-        //var sample: i32 = 0;
-        var sample: [4]u8 = undefined;
 
         self.gTime = 0.0;
         const timeStep: f64 = 1.0/@intToFloat(f64, self.rate);
 
         while (self.running) {
             var frame = self.user_fn.?(self.gTime).clip();
-            self.buffer[j] = frame;
+            self.buffer[0 + j*2] = @floatToInt(i16, frame.l * 32767);
+            self.buffer[1 + j*2] = @floatToInt(i16, frame.r * 32767);
             self.gTime += timeStep;
 
             // If we have a buffer full of samples, write 1 period of 
             //samples to the sound card
             j+=1;
-            total_frames+=1;
             if(j == self.frames){
                 j = @intCast(usize, c.snd_pcm_writei(self.handle, &self.buffer[0], self.frames));
 

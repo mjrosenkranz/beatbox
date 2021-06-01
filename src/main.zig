@@ -1,5 +1,6 @@
 const std = @import("std");
 const os = std.os;
+const fs = std.fs;
 const math = std.math;
 const soundout = @import("soundout.zig");
 const input = @import("input.zig");
@@ -23,10 +24,7 @@ const alloc = std.heap.page_allocator;
 var allNotes: [input.key_states.len]notes.Note = undefined;
 
 var ss: soundout.SoundOut = undefined;
-var samp = sampler.Sampler{
-    .sample = .{},
-};
-
+var samp: sampler.Sampler = undefined;
 fn makeNoise(t: f64) soundout.Frame {
     var frame: soundout.Frame = .{};
     for (allNotes) |*note| {
@@ -37,7 +35,20 @@ fn makeNoise(t: f64) soundout.Frame {
     return frame;
 }
 
+
 pub fn main() anyerror!void {
+    // read in a sample
+    var s = try sampler.Sample.init("", alloc);
+    defer s.deinit();
+    std.log.info("frames: {}", .{s.data.len});
+
+    samp = .{
+        .volume = 0.8,
+        .sample = s,
+    };
+
+    sinst.volume = 0.2;
+
     ss = soundout.SoundOut.init();
 
     ss.user_fn = makeNoise;
@@ -59,7 +70,7 @@ pub fn main() anyerror!void {
 
 
     // change volue
-    sinst.volume = 0.1;
+    //sinst.volume = 0.1;
 
     // TODO:clear screen and write the keyboard with other information
     // write our lil keyboard to the screen
