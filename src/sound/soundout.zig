@@ -70,7 +70,9 @@ pub const SoundOut = struct {
 
         validate(c.snd_pcm_hw_params_set_rate_near(self.handle, params, &self.rate, &dir));
 
-        self.frames = 32;
+        validate(c.snd_pcm_hw_params_set_periods(self.handle, params, 4, 0));
+
+        self.frames = 256;
         validate(c.snd_pcm_hw_params_set_period_size_near(self.handle, params, &self.frames, &dir));
 
         rc = c.snd_pcm_hw_params(self.handle, params);
