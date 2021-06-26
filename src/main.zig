@@ -29,7 +29,7 @@ fn makeNoise(t: f64) sound.Frame {
     var f: sound.Frame = .{};
     for (allNotes) |*note| {
         if (note.active) {
-            f= f.add(sampler.sound(t, note));
+            f= f.add(synth.sound(t, note));
         }
     }
     return f;
@@ -74,9 +74,16 @@ pub fn main() anyerror!void {
 
     var currKey: i8 = -1;
     var quit = false;
+    var wall_time: f64 = 0;
+    var old_time: i64 = std.time.milliTimestamp();
+    var real_time: i64 = std.time.milliTimestamp();
     while (!quit) {
         if (!keyboard.update())
             quit = true;
+
+        real_time = std.time.milliTimestamp();
+        wall_time += @intToFloat(f64, (real_time - old_time))/1000;
+        old_time = real_time;
 
         var k: usize = 0;
         while (k < keyboard.key_states.len) : (k+=1) {
@@ -88,5 +95,7 @@ pub fn main() anyerror!void {
                 allNotes[k].off = ss.getTime();
             }
         }
+
+        std.log.info("cp: {d:.2} wall: {d:.2} latency: {d:.4}", .{ss.gTime, wall_time, wall_time - ss.gTime});
     }
 }

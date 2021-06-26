@@ -12,6 +12,8 @@ const AlsaError = error {
 
 const alloc = std.heap.page_allocator;
 
+// samples per block 256
+// blocks per queue 8
 pub const SoundOut = struct {
     rate: u32,
     amp: f64,
@@ -54,22 +56,22 @@ pub const SoundOut = struct {
             return AlsaError.FailedToOpen;
         }
 
-        _ = c.snd_pcm_hw_params_malloc(&params);
+        validate(c.snd_pcm_hw_params_malloc(&params));
 
-        _ = c.snd_pcm_hw_params_any(self.handle, params);
+        validate(c.snd_pcm_hw_params_any(self.handle, params));
 
-        _ = c.snd_pcm_hw_params_set_access(self.handle, params, c.snd_pcm_access_t.SND_PCM_ACCESS_RW_INTERLEAVED);
+        validate(c.snd_pcm_hw_params_set_access(self.handle, params, c.snd_pcm_access_t.SND_PCM_ACCESS_RW_INTERLEAVED));
 
         validate(c.snd_pcm_hw_params_set_format(self.handle, params,
             //c.snd_pcm_format_t.SND_PCM_FORMAT_FLOAT));
             c.snd_pcm_format_t.SND_PCM_FORMAT_S16_LE));
 
-        _ = c.snd_pcm_hw_params_set_channels(self.handle, params, self.channels);
+        validate(c.snd_pcm_hw_params_set_channels(self.handle, params, self.channels));
 
-        _ = c.snd_pcm_hw_params_set_rate_near(self.handle, params, &self.rate, &dir);
+        validate(c.snd_pcm_hw_params_set_rate_near(self.handle, params, &self.rate, &dir));
 
-        self.frames = 4;
-        _ = c.snd_pcm_hw_params_set_period_size_near(self.handle, params, &self.frames, &dir);
+        self.frames = 32;
+        validate(c.snd_pcm_hw_params_set_period_size_near(self.handle, params, &self.frames, &dir));
 
         rc = c.snd_pcm_hw_params(self.handle, params);
         if (rc < 0) {
@@ -107,6 +109,7 @@ pub const SoundOut = struct {
                 // Check for under runs
                 if (j < 0){
                     _ = c.snd_pcm_prepare(self.handle);
+                    std.log.err("underrun", .{});
                 }
                 j = 0;
             }
