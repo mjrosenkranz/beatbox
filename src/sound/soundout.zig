@@ -63,7 +63,6 @@ pub const SoundOut = struct {
         validate(c.snd_pcm_hw_params_set_access(self.handle, params, c.snd_pcm_access_t.SND_PCM_ACCESS_RW_INTERLEAVED));
 
         validate(c.snd_pcm_hw_params_set_format(self.handle, params,
-            //c.snd_pcm_format_t.SND_PCM_FORMAT_FLOAT));
             c.snd_pcm_format_t.SND_PCM_FORMAT_S16_LE));
 
         validate(c.snd_pcm_hw_params_set_channels(self.handle, params, self.channels));

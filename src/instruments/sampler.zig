@@ -5,11 +5,17 @@ const notes = @import("notes.zig");
 
 // TODO: functions for converting samples
 pub const Sample = struct {
-    // TODO change this to an array of frames
     data: []Frame = undefined,
-    alloc: *std.mem.Allocator,
+    alloc: *std.mem.Allocator, //TODO: do we really need this?
 
     const Self = @This();
+
+    pub fn empty() Self {
+        return .{
+            .alloc = std.heap.page_allocator,
+            .data = &[_]Frame{},
+        };
+    }
 
     pub fn init(filename: []const u8, a: *std.mem.Allocator) !Self {
         var ret = Self{
@@ -52,19 +58,26 @@ pub const Sample = struct {
 
 pub const Sampler = struct {
     volume: f32 = 1.0,
-    sample: Sample,
+    samples: [16]Sample,
 
     const Self = @This();
     pub fn sound(self: Self, t: f64, n: *notes.Note) Frame {
+        // get the sample we should be playing based on the note id
+        const j: usize = n.id;
+
+        const sample = self.samples[j];
+
         const lifeTime = t - n.on;
         // index into the sample based on the time
         const i = @floatToInt(usize, lifeTime * 44100);
 
-        if (i >= self.sample.data.len) {
+        if (i >= sample.data.len) {
             n.active = false;
             return .{};
         }
 
-        return self.sample.data[i].times(self.volume);
+        return sample.data[i].times(self.volume);
     }
+
+    // TODO: method for adding/swapping/removing samples
 };
