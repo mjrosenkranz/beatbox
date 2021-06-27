@@ -82,7 +82,6 @@ pub const SoundOut = struct {
 
         self.buffer = try alloc.alloc(i16, self.frames * self.channels);
 
-        std.log.info("Starting new thread", .{});
         self.thread = try std.Thread.spawn(loop, self);
     }
 

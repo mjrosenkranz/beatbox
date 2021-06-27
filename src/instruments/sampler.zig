@@ -6,23 +6,19 @@ const notes = @import("notes.zig");
 // TODO: functions for converting samples
 pub const Sample = struct {
     data: []Frame = undefined,
-    alloc: *std.mem.Allocator, //TODO: do we really need this?
 
     const Self = @This();
 
     pub fn empty() Self {
         return .{
-            .alloc = std.heap.page_allocator,
             .data = &[_]Frame{},
         };
     }
 
-    pub fn init(filename: []const u8, a: *std.mem.Allocator) !Self {
-        var ret = Self{
-            .alloc = a,
-        };
+    pub fn init(fname: []const u8, a: *std.mem.Allocator) !Self {
+        var ret = Self{ };
 
-        const snareFile = try fs.cwd().openFile(filename, fs.File.OpenFlags{ .read = true });
+        const snareFile = try fs.cwd().openFile(fname, fs.File.OpenFlags{ .read = true });
         defer snareFile.close();
         const reader = snareFile.reader;
         const stat = try snareFile.stat();
@@ -50,17 +46,34 @@ pub const Sample = struct {
 
         return ret;
     }
-
-    pub fn deinit(self: Self) void {
-        self.alloc.free(self.data);
-    }
 };
 
 pub const Sampler = struct {
     volume: f32 = 1.0,
     samples: [16]Sample,
+    allocator: *std.mem.Allocator,
 
     const Self = @This();
+
+    pub fn init(allocator: *std.mem.Allocator) !Self {
+        return Self{
+            .allocator = allocator,
+            .volume = 1.0,
+            .samples = [_]Sample{
+                Sample.empty(), Sample.empty(), Sample.empty(), Sample.empty(),
+                Sample.empty(), Sample.empty(), Sample.empty(), Sample.empty(),
+                Sample.empty(), Sample.empty(), Sample.empty(), Sample.empty(),
+                Sample.empty(), Sample.empty(), Sample.empty(), Sample.empty(),
+            },
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        for (self.samples) |sample| {
+            self.allocator.free(sample.data);
+        }
+    }
+
     pub fn sound(self: Self, t: f64, n: *notes.Note) Frame {
         // get the sample we should be playing based on the note id
         const j: usize = n.id;
@@ -79,5 +92,15 @@ pub const Sampler = struct {
         return sample.data[i].times(self.volume);
     }
 
-    // TODO: method for adding/swapping/removing samples
+    /// Replace the sample at index i with a sample under the file given
+    pub fn replaceSample(self: *Self, i: usize, fname: []const u8) !void {
+        // out of range error
+        if (i > self.samples.len) return error.IndexOutOfRange;
+        // create the new sample (do this first so that if it fails we won't have an empty sample
+        var s = try Sample.init(fname, self.allocator);
+        // deallocate the sample currently residing there
+        self.allocator.free(self.samples[i].data);
+        // replace
+        self.samples[i] = s;
+    }
 };

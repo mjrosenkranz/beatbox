@@ -38,21 +38,10 @@ fn makeNoise(t: f64) sound.Frame {
 
 pub fn main() anyerror!void {
 
-    sampler = .{
-        .volume = 0.8,
-        .samples = [16]inst.Sample{
-            try inst.Sample.init("./samples/snare.raw", heap),
-            inst.Sample.empty(), inst.Sample.empty(), inst.Sample.empty(),
-            inst.Sample.empty(), inst.Sample.empty(), inst.Sample.empty(), inst.Sample.empty(),
-            inst.Sample.empty(), inst.Sample.empty(), inst.Sample.empty(), inst.Sample.empty(),
-            inst.Sample.empty(), inst.Sample.empty(), inst.Sample.empty(), inst.Sample.empty(),
-        },
-    };
-    defer {
-        for (sampler.samples) |sample| {
-            sample.deinit();
-        }
-    }
+    sampler = try inst.Sampler.init(heap);
+    defer sampler.deinit();
+
+    try sampler.replaceSample(0, "./samples/snare.raw");
 
     ss = sound.output.init();
     ss.user_fn = makeNoise;
@@ -74,7 +63,8 @@ pub fn main() anyerror!void {
 
     // TODO:clear screen and write the keyboard with other information
     // write our lil keyboard to the screen
-    _ = try std.io.getStdErr().write(kbstr);
+    //_ = try std.io.getStdErr().write(kbstr);
+    //std.log.info("cp: {d:.2} wall: {d:.2} latency: {d:.4}", .{ss.gTime, wall_time, wall_time - ss.gTime});
 
     var currKey: i8 = -1;
     var quit = false;
@@ -100,6 +90,5 @@ pub fn main() anyerror!void {
             }
         }
 
-        //std.log.info("cp: {d:.2} wall: {d:.2} latency: {d:.4}", .{ss.gTime, wall_time, wall_time - ss.gTime});
     }
 }
