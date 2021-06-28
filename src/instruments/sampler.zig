@@ -15,36 +15,42 @@ pub const Sample = struct {
         };
     }
 
-    pub fn init(fname: []const u8, a: *std.mem.Allocator) !Self {
-        var ret = Self{ };
+    pub fn init(fname: []const u8, allocator: *std.mem.Allocator) !Self {
+        const file = try fs.cwd().openFile("./samples/Snare_01.wav", fs.File.OpenFlags{ .read = true });
+        defer file.close();
 
-        const File = try fs.cwd().openFile(fname, fs.File.OpenFlags{ .read = true });
-        defer File.close();
-        const reader = File.reader;
-        const stat = try File.stat();
+        return Self{
+            .data = try waveToFrames(file, allocator),
+        };
+        //var ret = Self{ };
 
-        ret.data = try a.alloc(Frame, stat.size/@sizeOf(Frame));
-        var buf = try a.alloc(u8, stat.size);
+        //const File = try fs.cwd().openFile(fname, fs.File.OpenFlags{ .read = true });
+        //defer File.close();
+        //const reader = File.reader;
+        //const stat = try File.stat();
 
-        defer a.free(buf);
-        _ = try File.readAll(buf);
+        //ret.data = try a.alloc(Frame, stat.size/@sizeOf(Frame));
+        //var buf = try a.alloc(u8, stat.size);
 
-        var i: usize = 0;
-        while (i < ret.data.len):(i+=1) {
-            ret.data[i] = .{
-                .l = @intToFloat(f32, @bitCast(i16, [_]u8{
-                    buf[0 + 4*i],
-                    buf[1 + 4*i]
-                })) / 32767.0,
+        //defer a.free(buf);
+        //_ = try File.readAll(buf);
 
-                .r = @intToFloat(f32, @bitCast(i16,[_]u8{
-                    buf[2 + 4*i], 
-                    buf[3 + 4*i],
-                })) / 32767.0,
-            };
-        }
+        //var i: usize = 0;
+        //while (i < ret.data.len):(i+=1) {
+        //    ret.data[i] = .{
+        //        .l = @intToFloat(f32, @bitCast(i16, [_]u8{
+        //            buf[0 + 4*i],
+        //            buf[1 + 4*i]
+        //        })) / 32767.0,
 
-        return ret;
+        //        .r = @intToFloat(f32, @bitCast(i16,[_]u8{
+        //            buf[2 + 4*i], 
+        //            buf[3 + 4*i],
+        //        })) / 32767.0,
+        //    };
+        //}
+
+        //return ret;
     }
 };
 
@@ -125,12 +131,10 @@ const wave_header = packed struct {
 };
 
 /// Reads a wave header from a file reader and verifies that it correct
-pub fn readWaveHeader(file: std.fs.File, a: *std.mem.Allocator) !wave_header {
+fn readWaveHeader(file: std.fs.File) !wave_header {
     // allocate on stack
     var header: wave_header = undefined;
-    // open file
 
-    
     // read contents into header
     const b = try file.read(std.mem.asBytes(&header));
     // verify we got the whole thang
@@ -158,10 +162,48 @@ pub fn readWaveHeader(file: std.fs.File, a: *std.mem.Allocator) !wave_header {
     return header;
 }
 
-test "read wav" {
+fn waveToFrames(file: std.fs.File, allocator: *std.mem.Allocator) ![]Frame {
+    // TODO: handle mono samples
+    // TODO: handle different sample sizes (rn only 16 bit)
+
+    const header = try readWaveHeader(file);
+    // allocate a buffer to read from file into
+    var buf = try allocator.alloc(u8, header.data_size);
+    defer allocator.free(buf);
+    // seek to end of header
+    try file.seekTo(@sizeOf(wave_header));
+    // read into buffer
+    _ = try file.read(buf);
+
+    // header.data_size / NumChannels * BitsPerSample/8 = NumSamples 
+    const num_samples = header.data_size / (header.n_channels * (header.bits_per_sample / 8));
+
+    // allocate the number of frames we need (do not free)
+    var frames = try allocator.alloc(Frame, num_samples);
+
+    // convert and add frames
+    var i: usize = 0;
+    while (i < frames.len):(i+=1) {
+        frames[i] = .{
+            .l = @intToFloat(f32, @bitCast(i16, [_]u8{
+                buf[0 + 4*i],
+                buf[1 + 4*i]
+            })) / 32767.0,
+
+            .r = @intToFloat(f32, @bitCast(i16,[_]u8{
+                buf[2 + 4*i], 
+                buf[3 + 4*i],
+            })) / 32767.0,
+        };
+    }
+
+    return frames;
+}
+
+test "read wave header" {
     const file = try fs.cwd().openFile("./samples/Snare_01.wav", fs.File.OpenFlags{ .read = true });
     defer file.close();
-    const header = try readWaveHeader(file, std.heap.page_allocator);
+    const header = try readWaveHeader(file);
 
     // check that the header size is correct
     try expect(@sizeOf(wave_header) == 44);
@@ -177,3 +219,9 @@ test "read wav" {
     // should be stereo
     try expect(header.n_channels == 2);
 }
+
+//test "read wave file" {
+//    const file = try fs.cwd().openFile("./samples/Snare_01.wav", fs.File.OpenFlags{ .read = true });
+//    defer file.close();
+//    try waveToFrames(file, std.heap.page_allocator);
+//}

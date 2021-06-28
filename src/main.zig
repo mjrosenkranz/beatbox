@@ -40,7 +40,7 @@ pub fn main() anyerror!void {
     sampler = try inst.Sampler.init(heap);
     defer sampler.deinit();
 
-    try sampler.replaceSample(0, "./samples/snare.raw");
+    try sampler.replaceSample(0, "./samples/Snare_01.wav");
 
     ss = sound.output.init();
     ss.user_fn = makeNoise;
