@@ -4,56 +4,13 @@ const Frame = @import("../sound.zig").Frame;
 const notes = @import("notes.zig");
 const expect = std.testing.expect;
 
+/// A wrapper over a slice of frames
+/// will later contain settings for how to play the given sample
 pub const Sample = struct {
-    data: []Frame = undefined,
-
-    const Self = @This();
-
-    pub fn empty() Self {
-        return .{
-            .data = &[_]Frame{},
-        };
-    }
-
-    pub fn init(fname: []const u8, allocator: *std.mem.Allocator) !Self {
-        const file = try fs.cwd().openFile("./samples/Snare_01.wav", fs.File.OpenFlags{ .read = true });
-        defer file.close();
-
-        return Self{
-            .data = try waveToFrames(file, allocator),
-        };
-        //var ret = Self{ };
-
-        //const File = try fs.cwd().openFile(fname, fs.File.OpenFlags{ .read = true });
-        //defer File.close();
-        //const reader = File.reader;
-        //const stat = try File.stat();
-
-        //ret.data = try a.alloc(Frame, stat.size/@sizeOf(Frame));
-        //var buf = try a.alloc(u8, stat.size);
-
-        //defer a.free(buf);
-        //_ = try File.readAll(buf);
-
-        //var i: usize = 0;
-        //while (i < ret.data.len):(i+=1) {
-        //    ret.data[i] = .{
-        //        .l = @intToFloat(f32, @bitCast(i16, [_]u8{
-        //            buf[0 + 4*i],
-        //            buf[1 + 4*i]
-        //        })) / 32767.0,
-
-        //        .r = @intToFloat(f32, @bitCast(i16,[_]u8{
-        //            buf[2 + 4*i], 
-        //            buf[3 + 4*i],
-        //        })) / 32767.0,
-        //    };
-        //}
-
-        //return ret;
-    }
+    data: []Frame = &[_]Frame{},
 };
 
+/// A Sampler is an instrument which can play sounds from files
 pub const Sampler = struct {
     volume: f32 = 1.0,
     samples: [16]Sample,
@@ -66,10 +23,10 @@ pub const Sampler = struct {
             .allocator = allocator,
             .volume = 1.0,
             .samples = [_]Sample{
-                Sample.empty(), Sample.empty(), Sample.empty(), Sample.empty(),
-                Sample.empty(), Sample.empty(), Sample.empty(), Sample.empty(),
-                Sample.empty(), Sample.empty(), Sample.empty(), Sample.empty(),
-                Sample.empty(), Sample.empty(), Sample.empty(), Sample.empty(),
+                Sample{}, Sample{}, Sample{}, Sample{},
+                Sample{}, Sample{}, Sample{}, Sample{},
+                Sample{}, Sample{}, Sample{}, Sample{},
+                Sample{}, Sample{}, Sample{}, Sample{},
             },
         };
     }
@@ -100,10 +57,16 @@ pub const Sampler = struct {
 
     /// Replace the sample at index i with a sample under the file given
     pub fn replaceSample(self: *Self, i: usize, fname: []const u8) !void {
+        // attempt to open the file
+        const file = try fs.cwd().openFile(fname, fs.File.OpenFlags{ .read = true });
+        defer file.close();
+
         // out of range error
         if (i > self.samples.len) return error.IndexOutOfRange;
         // create the new sample (do this first so that if it fails we won't have an empty sample
-        var s = try Sample.init(fname, self.allocator);
+        var s = Sample{
+            .data = try waveToFrames(file, self.allocator),
+        };
         // deallocate the sample currently residing there
         self.allocator.free(self.samples[i].data);
         // replace
@@ -162,10 +125,10 @@ fn readWaveHeader(file: std.fs.File) !wave_header {
     return header;
 }
 
+/// read a file into a slice of frames
 fn waveToFrames(file: std.fs.File, allocator: *std.mem.Allocator) ![]Frame {
     // TODO: handle mono samples
     // TODO: handle different sample sizes (rn only 16 bit)
-
     const header = try readWaveHeader(file);
     // allocate a buffer to read from file into
     var buf = try allocator.alloc(u8, header.data_size);
@@ -219,9 +182,3 @@ test "read wave header" {
     // should be stereo
     try expect(header.n_channels == 2);
 }
-
-//test "read wave file" {
-//    const file = try fs.cwd().openFile("./samples/Snare_01.wav", fs.File.OpenFlags{ .read = true });
-//    defer file.close();
-//    try waveToFrames(file, std.heap.page_allocator);
-//}

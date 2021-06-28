@@ -40,7 +40,14 @@ pub fn main() anyerror!void {
     sampler = try inst.Sampler.init(heap);
     defer sampler.deinit();
 
-    try sampler.replaceSample(0, "./samples/Snare_01.wav");
+    try sampler.replaceSample(0, "./samples/808.wav");
+    try sampler.replaceSample(1, "./samples/kick.wav");
+    try sampler.replaceSample(2, "./samples/snare.wav");
+    try sampler.replaceSample(3, "./samples/rim.wav");
+    try sampler.replaceSample(4, "./samples/clap.wav");
+    try sampler.replaceSample(5, "./samples/ch.wav");
+    try sampler.replaceSample(6, "./samples/perc.wav");
+    try sampler.replaceSample(7, "./samples/bell.wav");
 
     ss = sound.output.init();
     ss.user_fn = makeNoise;
@@ -62,7 +69,7 @@ pub fn main() anyerror!void {
 
     // TODO:clear screen and write the keyboard with other information
     // write our lil keyboard to the screen
-    //_ = try std.io.getStdErr().write(kbstr);
+    _ = try std.io.getStdErr().write(kbstr);
     //std.log.info("cp: {d:.2} wall: {d:.2} latency: {d:.4}", .{ss.gTime, wall_time, wall_time - ss.gTime});
 
     var currKey: i8 = -1;
