@@ -2,8 +2,8 @@ const std = @import("std");
 const fs = std.fs;
 const Frame = @import("../sound.zig").Frame;
 const notes = @import("notes.zig");
+const expect = std.testing.expect;
 
-// TODO: functions for converting samples
 pub const Sample = struct {
     data: []Frame = undefined,
 
@@ -18,16 +18,16 @@ pub const Sample = struct {
     pub fn init(fname: []const u8, a: *std.mem.Allocator) !Self {
         var ret = Self{ };
 
-        const snareFile = try fs.cwd().openFile(fname, fs.File.OpenFlags{ .read = true });
-        defer snareFile.close();
-        const reader = snareFile.reader;
-        const stat = try snareFile.stat();
+        const File = try fs.cwd().openFile(fname, fs.File.OpenFlags{ .read = true });
+        defer File.close();
+        const reader = File.reader;
+        const stat = try File.stat();
 
         ret.data = try a.alloc(Frame, stat.size/@sizeOf(Frame));
         var buf = try a.alloc(u8, stat.size);
 
         defer a.free(buf);
-        _ = try snareFile.readAll(buf);
+        _ = try File.readAll(buf);
 
         var i: usize = 0;
         while (i < ret.data.len):(i+=1) {
@@ -104,3 +104,76 @@ pub const Sampler = struct {
         self.samples[i] = s;
     }
 };
+
+/// Header layout of a wave file
+const wave_header = packed struct {
+    chunk_id: [4]u8, // (big)
+    chunk_size: u32,
+    format: [4]u8, // should be WAVE (big)
+    // fmt
+    fmt_id: [4]u8, // (big)
+    fmt_size: u32,
+    fmt: u16,
+    n_channels: u16,
+    sample_rate: u32,
+    byte_rate: u32,
+    block_align: u16,
+    bits_per_sample: u16,
+    // data
+    data_id: [4]u8, // (big)
+    data_size: u32,
+};
+
+/// Reads a wave header from a file reader and verifies that it correct
+pub fn readWaveHeader(file: std.fs.File, a: *std.mem.Allocator) !wave_header {
+    // allocate on stack
+    var header: wave_header = undefined;
+    // open file
+
+    
+    // read contents into header
+    const b = try file.read(std.mem.asBytes(&header));
+    // verify we got the whole thang
+    if (b < @sizeOf(wave_header)) {
+        return error.FileTooShort;
+    }
+
+    // verify RIFF
+    if (!std.mem.eql(u8, &header.chunk_id, "RIFF")) {
+        return error.NoRIFF;
+    }
+    // verify WAVE
+    if (!std.mem.eql(u8, &header.format, "WAVE")) {
+        return error.NoWAVE;
+    }
+    // verify fmt
+    if (!std.mem.eql(u8, &header.fmt_id, "fmt ")) {
+        return error.NoFMT;
+    }
+    // verify data
+    if (!std.mem.eql(u8, &header.data_id, "data")) {
+        return error.NoData;
+    }
+
+    return header;
+}
+
+test "read wav" {
+    const file = try fs.cwd().openFile("./samples/Snare_01.wav", fs.File.OpenFlags{ .read = true });
+    defer file.close();
+    const header = try readWaveHeader(file, std.heap.page_allocator);
+
+    // check that the header size is correct
+    try expect(@sizeOf(wave_header) == 44);
+
+    // check that we have accurate information about the file
+
+    // indicates that we are using a pcm
+    try expect(header.fmt == 1);
+    // sample rate should be 44100hz
+    try expect(header.sample_rate == 44100);
+    // should be 16 bits per sample
+    try expect(header.bits_per_sample == 16);
+    // should be stereo
+    try expect(header.n_channels == 2);
+}
