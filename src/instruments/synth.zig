@@ -23,11 +23,11 @@ pub const Synth = struct {
 
         // use all the oscillators that this synth has
         for (self.oscilators) |o| {
-            val += o.amplitude * o.val(t, notes.freqFromScale(.{.id=n.id, .octave=o.octave}));
+            val += o.val(t, notes.freqFromScale(.{.id=n.id, .octave=o.octave}));
         }
 
         // add envelope
-        val *= self.env.getAmp(t, n);
+        val *= self.env.getAmp(t, n) * self.volume;
 
         return .{
             .l = @floatCast(f32, val),
@@ -46,6 +46,7 @@ pub fn Bell() Synth {
         .oscilators = [_]osc.Oscillator{
             .{
                 .osc_type = .sin,
+                .lfo = .{.hertz=5.0, .amp =0.001}
             },
             .{
                 .osc_type = .sin,
@@ -60,16 +61,3 @@ pub fn Bell() Synth {
         },
     };
 }
-//
-//fn bellSound(t: f64, env: envelope.ASDR, n: *notes.Note) Frame {
-//    const val = env.getAmp(t, n) * (
-//        1.0 * osc.osc(t, notes.freqFromScale(.{.id=n.id, .octave=1}), .sin, .{.hertz=5.0, .amp =0.001}) +
-//        0.5 * osc.osc(t, notes.freqFromScale(.{.id=n.id, .octave=2}), .sin, .{}) +
-//        0.25 * osc.osc(t,notes.freqFromScale(.{.id=n.id, .octave=3}), .sin, .{})
-//    );
-//
-//    return .{
-//        .l = @floatCast(f32, val),
-//        .r = @floatCast(f32, val),
-//    };
-//}

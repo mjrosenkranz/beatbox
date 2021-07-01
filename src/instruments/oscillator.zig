@@ -34,14 +34,18 @@ pub const Oscillator = struct {
     /// how much influence this osc has on the overal sound
     amplitude: f64 = 1.0,
     //TODO another oscilator to be an LFO?
+    /// LFO is a struct of values for now at least
+    lfo: struct {
+        hertz: f64 = 0,
+        amp: f64 = 0,
+    } = .{.hertz=0, .amp =0},
     
     const Self = @This();
 
     pub fn val(self: Self, t: f64, hertz: f64) callconv(.Inline)  f64 {
-        //const freq = w(hertz) * t + LFO.amp * hertz * @sin(w(LFO.hertz) * t);
-        const freq = w(hertz) * t;
-        //return self.amplitude * switch (self.osc_type) {
-        return switch (self.osc_type) {
+        const freq = w(hertz) * t + self.lfo.amp * hertz * @sin(w(self.lfo.hertz) * t);
+        //const freq = w(hertz) * t;
+        return self.amplitude * switch (self.osc_type) {
             .sin => @sin(freq),
             .sqr => {
                 if (@sin(freq) > 0) {
