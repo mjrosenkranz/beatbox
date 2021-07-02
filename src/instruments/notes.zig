@@ -1,5 +1,7 @@
+//! Notes for working with music.
+//! so far only have chromatic scale but we can expand from here
 const math = @import("std").math;
-/// A note in an instrument
+/// A note in an scale
 pub const Note = struct {
     /// the position of the notes in our scale
     id: u8 = 0,

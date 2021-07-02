@@ -1,9 +1,11 @@
+//! An oscillator produces an f64 between -1 and 1
+
 const std = @import("std");
 const math = std.math;
-//TODO: make this a struct
 
-
+/// setup random for noise
 var r = std.rand.DefaultPrng.init(12345);
+
 /// Types of oscillators we can use
 const OscType = enum {
     /// normal sin wave
@@ -33,7 +35,6 @@ pub const Oscillator = struct {
     octave: i8 = 0,
     /// how much influence this osc has on the overal sound
     amplitude: f64 = 1.0,
-    //TODO another oscilator to be an LFO?
     /// LFO is a struct of values for now at least
     lfo: struct {
         hertz: f64 = 0,
@@ -44,7 +45,6 @@ pub const Oscillator = struct {
 
     pub fn val(self: Self, t: f64, hertz: f64) callconv(.Inline)  f64 {
         const freq = w(hertz) * t + self.lfo.amp * hertz * @sin(w(self.lfo.hertz) * t);
-        //const freq = w(hertz) * t;
         return self.amplitude * switch (self.osc_type) {
             .sin => @sin(freq),
             .sqr => {

@@ -1,6 +1,9 @@
+//! Play recorded sounds with a given note
+//! also contains functions for loading wave files
+
 const std = @import("std");
 const fs = std.fs;
-const Frame = @import("../sound.zig").Frame;
+const Frame = @import("../sound/sound.zig").Frame;
 const notes = @import("notes.zig");
 const expect = std.testing.expect;
 
@@ -12,12 +15,16 @@ pub const Sample = struct {
 
 /// A Sampler is an instrument which can play sounds from files
 pub const Sampler = struct {
+    /// volume of our instrument
     volume: f32 = 1.0,
+    /// 16 samples to choose from
     samples: [16]Sample,
+    /// allocator for storing these samples
     allocator: *std.mem.Allocator,
 
     const Self = @This();
 
+    /// Create an empty sampler
     pub fn init(allocator: *std.mem.Allocator) !Self {
         return Self{
             .allocator = allocator,
@@ -31,12 +38,14 @@ pub const Sampler = struct {
         };
     }
 
+    /// shutdown this sampler, deallocates the samples in memory
     pub fn deinit(self: *Self) void {
         for (self.samples) |sample| {
             self.allocator.free(sample.data);
         }
     }
 
+    /// play a sound!
     pub fn sound(self: Self, t: f64, n: *notes.Note) Frame {
         // get the sample we should be playing based on the note id
         const j: usize = n.id;

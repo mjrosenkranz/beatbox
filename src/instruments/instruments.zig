@@ -1,18 +1,18 @@
-const envelope = @import("instruments/envelope.zig");
+const envelope = @import("envelope.zig");
 pub const env = envelope.ASDR;
 
-const notes = @import("instruments/notes.zig");
+const notes = @import("notes.zig");
 pub const Note = notes.Note;
 pub const Scale = notes.Scale;
 
-const oscillator = @import("instruments/oscillator.zig");
+const oscillator = @import("oscillator.zig");
 pub const osc = oscillator.osc;
 
-const sampler = @import("instruments/sampler.zig");
+const sampler = @import("sampler.zig");
 pub const Sampler = sampler.Sampler;
 pub const Sample = sampler.Sample;
 
 
-const synth = @import("instruments/synth.zig");
+const synth = @import("synth.zig");
 pub const Synth = synth.Synth;
 pub const Bell = synth.Bell;

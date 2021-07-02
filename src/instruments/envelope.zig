@@ -1,3 +1,5 @@
+//! An envelope controls the value of a property over time
+
 const notes = @import("notes.zig");
 
 pub const ASDR = struct {

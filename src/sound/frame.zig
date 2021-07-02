@@ -1,4 +1,5 @@
 const math = @import("std").math;
+/// A stereo PCM value for a single sample
 pub const Frame = packed struct {
     l: f32 = 0.0,
     r: f32 = 0.0,

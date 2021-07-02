@@ -1,9 +1,12 @@
+//! Synthesizer for making funky sounds!
+
 const std = @import("std");
-const Frame = @import("../sound.zig").Frame;
+const Frame = @import("../sound/sound.zig").Frame;
 const envelope = @import("envelope.zig");
 const notes = @import("notes.zig");
 const osc = @import("oscillator.zig");
 
+/// A synthesizer instrument
 pub const Synth = struct {
     /// The volume of this synth
     volume: f32 = 1.0,
@@ -35,6 +38,10 @@ pub const Synth = struct {
         };
     }
 };
+
+//--------------------------------------------------------------------------------
+//                                   presets
+//--------------------------------------------------------------------------------
 
 pub fn Bell() Synth {
     return .{
