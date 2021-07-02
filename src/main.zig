@@ -6,6 +6,7 @@ const math = std.math;
 const sound = @import("sound.zig");
 const keyboard = @import("keyboard.zig");
 const inst = @import("instruments.zig");
+const seq = @import("sequencer.zig");
 
 const kbstr = 
 \\|   |   |   |   |   | |   |   |   |   | |   | |   |   |   |
@@ -24,6 +25,7 @@ var allNotes: [keyboard.key_states.len]inst.Note = undefined;
 
 var ss: sound.output = undefined;
 var sampler: inst.Sampler = undefined;
+var sequencer = seq.Sequencer.init(90, 3, 6);
 
 fn makeNoise(t: f64) sound.Frame {
     var f: sound.Frame = .{};
@@ -77,13 +79,17 @@ pub fn main() anyerror!void {
     var wall_time: f64 = 0;
     var old_time: i64 = std.time.milliTimestamp();
     var real_time: i64 = std.time.milliTimestamp();
+    var elapsed: f64 = 0;
     while (!quit) {
         if (!keyboard.update())
             quit = true;
 
         real_time = std.time.milliTimestamp();
-        wall_time += @intToFloat(f64, (real_time - old_time))/1000;
+        elapsed = @intToFloat(f64, (real_time - old_time))/1000;
+        wall_time += elapsed;
         old_time = real_time;
+
+        sequencer.update(elapsed);
 
         var k: usize = 0;
         while (k < keyboard.key_states.len) : (k+=1) {
