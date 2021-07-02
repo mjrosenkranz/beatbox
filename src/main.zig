@@ -3,9 +3,9 @@ const os = std.os;
 const fs = std.fs;
 const math = std.math;
 
-const sound = @import("sound.zig");
+const sound = @import("sound/sound.zig");
 const keyboard = @import("keyboard.zig");
-const inst = @import("instruments.zig");
+const inst = @import("instruments/instruments.zig");
 const seq = @import("sequencer.zig");
 
 const kbstr = 
@@ -51,8 +51,11 @@ pub fn main() anyerror!void {
     try sampler.replaceSample(6, "./samples/perc.wav");
     try sampler.replaceSample(7, "./samples/bell.wav");
 
-    ss = sound.output.init();
-    ss.user_fn = makeNoise;
+    ss = sound.output {
+        .frames = 256,
+        .blocks = 4,
+        .user_fn = makeNoise,
+    };
 
     try ss.setup();
     defer ss.deinit();

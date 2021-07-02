@@ -1,5 +1,8 @@
+//! Backend for playing sounds on the sound card
+
 const std = @import("std");
 const frame = @import("frame.zig");
+/// import our alsa backend
 const c = @cImport({
     @cInclude("alsa/asoundlib.h");
     @cDefine("ALSA_PCM_NEW_HW_PARAMS_API", "1");
@@ -15,29 +18,28 @@ const alloc = std.heap.page_allocator;
 // samples per block 256
 // blocks per queue 8
 pub const SoundOut = struct {
-    rate: u32,
-    amp: f64,
-    channels: u8,
+    /// sample rate of output
+    rate: u32= 44100,
+    /// number of channles (stero vs mono)
+    channels: u8 = 2,
+    /// hw handle used to control sound card
     handle: ?*c.snd_pcm_t = null,
+    /// buffer for holding samples for the given block
     buffer: []i16 = undefined,
-    frames: c.snd_pcm_uframes_t = 0,
-    user_fn: ?fn(f64) frame.Frame = null,
-    /// global time
-    gTime: f64 = 0.0,
+    /// number of frames per block
+    frames: c.snd_pcm_uframes_t = 256,
+    /// number of blocks we will use
+    blocks: u8 = 4,
+    /// callback function for creating sound
+    user_fn: ?fn(f64) frame.Frame,
+    /// cpu time
+    cpu_time: f64 = 0.0,
+    /// thread the main ouput loop will run in
     thread: *std.Thread = undefined,
+    /// are we still running this app
     running: bool = true,
 
     const Self = @This();
-
-    // TODO: get settings from struct
-    pub fn init() Self {
-        return Self{
-            .rate = 44100,
-            .amp = 16000,
-            .channels = 2,
-            .user_fn = null,
-        };
-    }
 
     // helper function to verify alsa functions
     fn validate(err: c_int) void {
@@ -69,9 +71,8 @@ pub const SoundOut = struct {
 
         validate(c.snd_pcm_hw_params_set_rate_near(self.handle, params, &self.rate, &dir));
 
-        validate(c.snd_pcm_hw_params_set_periods(self.handle, params, 4, 0));
+        validate(c.snd_pcm_hw_params_set_periods(self.handle, params, self.blocks, 0));
 
-        self.frames = 256;
         validate(c.snd_pcm_hw_params_set_period_size_near(self.handle, params, &self.frames, &dir));
 
         rc = c.snd_pcm_hw_params(self.handle, params);
@@ -91,14 +92,14 @@ pub const SoundOut = struct {
         var y: f64 = 0;
         var x: f64 = 0;
 
-        self.gTime = 0.0;
+        self.cpu_time = 0.0;
         const timeStep: f64 = 1.0/@intToFloat(f64, self.rate);
 
         while (self.running) {
-            var f = self.user_fn.?(self.gTime).clip();
+            var f = self.user_fn.?(self.cpu_time).clip();
             self.buffer[0 + @intCast(usize, j)*2] = @floatToInt(i16, f.l * 32767);
             self.buffer[1 + @intCast(usize, j)*2] = @floatToInt(i16, f.r * 32767);
-            self.gTime += timeStep;
+            self.cpu_time += timeStep;
 
             // If we have a buffer full of samples, write 1 period of 
             //samples to the sound card
@@ -117,7 +118,7 @@ pub const SoundOut = struct {
     }
 
     pub fn getTime(self: Self) callconv(.Inline) f64 {
-        return self.gTime;
+        return self.cpu_time;
     }
 
     pub fn deinit(self: *Self) void {
