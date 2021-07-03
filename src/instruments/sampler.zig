@@ -3,7 +3,7 @@
 
 const std = @import("std");
 const fs = std.fs;
-const Frame = @import("../sound/sound.zig").Frame;
+const Frame = @import("../frame.zig").Frame;
 const notes = @import("notes.zig");
 const expect = std.testing.expect;
 const Instrument = @import("instruments.zig").Instrument;

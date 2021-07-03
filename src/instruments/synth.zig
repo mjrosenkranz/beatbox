@@ -1,7 +1,7 @@
 //! Synthesizer for making funky sounds!
 
 const std = @import("std");
-const Frame = @import("../sound/sound.zig").Frame;
+const Frame = @import("../frame.zig").Frame;
 const envelope = @import("envelope.zig");
 const notes = @import("notes.zig");
 const osc = @import("oscillator.zig");

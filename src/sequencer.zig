@@ -4,7 +4,7 @@ const instrument = @import("instruments/instruments.zig");
 const Instrument = instrument.Instrument;
 const Note = instrument.Note;
 const Metronome = instrument.Metronome;
-const Frame = @import("sound/sound.zig").Frame;
+const Frame = @import("frame.zig").Frame;
 
 const Track = struct {
     /// instrument on this track

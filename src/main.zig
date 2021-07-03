@@ -3,7 +3,7 @@ const os = std.os;
 const fs = std.fs;
 const math = std.math;
 
-const sound = @import("sound/sound.zig");
+const Frame = @import("frame.zig").Frame;
 const platform = @import("platform/platform.zig");
 const inst = @import("instruments/instruments.zig");
 const seq = @import("sequencer.zig");
@@ -23,12 +23,12 @@ var synth: inst.Synth = inst.Bell();
 const alloc = std.heap.page_allocator;
 var allNotes: [16]inst.Note = undefined;
 
-var so: sound.output = undefined;
+var so: platform.Output = undefined;
 var sampler: inst.Sampler = undefined;
 var sequencer: seq.Sequencer = undefined; 
 
-fn makeNoise(t: f64) sound.Frame {
-    var f: sound.Frame = .{};
+fn makeNoise(t: f64) Frame {
+    var f: Frame = .{};
     // live notes
     for (allNotes) |*note| {
         if (note.active) {
@@ -59,10 +59,7 @@ pub fn main() anyerror!void {
     try sampler.replaceSample(6, "./samples/perc.wav");
     try sampler.replaceSample(7, "./samples/bell.wav");
 
-    // test the sequencer
-    try sequencer.addTrack(&sampler.parent);
-
-    so = sound.output {
+    so = platform.Output {
         .frames = 256,
         .blocks = 4,
         .user_fn = makeNoise,

@@ -20,7 +20,7 @@ const synth = @import("synth.zig");
 pub const Synth = synth.Synth;
 pub const Bell = synth.Bell;
 
-const Frame = @import("../sound/sound.zig").Frame;
+const Frame = @import("../frame.zig").Frame;
 /// instrument interface
 pub const Instrument = struct {
     volume: f32 = 1.0,

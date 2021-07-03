@@ -1,7 +1,7 @@
 //! Backend for playing sounds on the sound card
 
 const std = @import("std");
-const frame = @import("frame.zig");
+const frame = @import("../frame.zig");
 /// import our alsa backend
 const c = @cImport({
     @cInclude("alsa/asoundlib.h");
@@ -17,7 +17,7 @@ const alloc = std.heap.page_allocator;
 
 // samples per block 256
 // blocks per queue 8
-pub const SoundOut = struct {
+pub const Output = struct {
     /// sample rate of output
     rate: u32= 44100,
     /// number of channles (stero vs mono)
