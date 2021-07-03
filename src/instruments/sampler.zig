@@ -12,6 +12,24 @@ const Instrument = @import("instruments.zig").Instrument;
 /// will later contain settings for how to play the given sample
 pub const Sample = struct {
     data: []Frame = &[_]Frame{},
+
+    const Self = @This();
+
+    /// reverse this sample
+    pub fn reverse(self: *Self) void {
+        // swap frame with opposite
+        var start: usize = 0;
+        var end: usize = self.data.len - 1;
+
+        var tmp: Frame = undefined;
+        while (start < end) {
+            tmp = self.data[start];
+            self.data[start] = self.data[end];
+            self.data[end] = tmp;
+            start += 1;
+            end -= 1;
+        }
+    }
 };
 
 /// A Sampler is an instrument which can play sounds from files
@@ -184,8 +202,6 @@ test "read wave header" {
 
     // check that the header size is correct
     try expect(@sizeOf(wave_header) == 44);
-
-    // check that we have accurate information about the file
 
     // indicates that we are using a pcm
     try expect(header.fmt == 1);

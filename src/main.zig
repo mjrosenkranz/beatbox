@@ -36,15 +36,16 @@ fn makeNoise(t: f64) sound.Frame {
         }
     }
 
+    // sequencer sounds
     f = f.add(sequencer.sound(t));
 
-    // sequencer sounds
     return f;
 }
 
 pub fn main() anyerror!void {
     sequencer = try seq.Sequencer.init(alloc, 120, 4, 8);
     defer sequencer.deinit();
+    sequencer.metronome_on = false;
 
     sampler = try inst.Sampler.init(alloc);
     defer sampler.deinit();

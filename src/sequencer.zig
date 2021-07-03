@@ -27,7 +27,7 @@ pub const Sequencer = struct {
     metronome: Metronome,
 
     /// should we be playing a sound on each beat
-    count_on: bool = true,
+    metronome_on: bool = true,
     /// beats per minute
     tempo: f64 = 120,
     /// beats per measure
@@ -75,7 +75,7 @@ pub const Sequencer = struct {
     pub fn sound(self: *Self, t: f64) Frame {
         var f: Frame = .{};
         for (self.notes) |*note| {
-            if (note.active and note.channel == 0) {
+            if (note.active and note.channel == 0 and self.metronome_on) {
                 f = f.add(self.metronome.parent.sound(t, note));
             }
         }
