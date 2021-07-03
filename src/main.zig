@@ -20,12 +20,12 @@ const kbstr =
 
 var synth: inst.Synth = inst.Bell();
 
-const heap = std.heap.page_allocator;
+const alloc = std.heap.page_allocator;
 var allNotes: [keyboard.key_states.len]inst.Note = undefined;
 
 var so: sound.output = undefined;
 var sampler: inst.Sampler = undefined;
-var sequencer = seq.Sequencer.init(120, 4, 8);
+var sequencer: seq.Sequencer = undefined; 
 
 fn makeNoise(t: f64) sound.Frame {
     var f: sound.Frame = .{};
@@ -36,18 +36,17 @@ fn makeNoise(t: f64) sound.Frame {
         }
     }
 
-    // sequencer notes
-    for (sequencer.notes) |*note| {
-        if (note.active) {
-            f = f.add(sampler.parent.sound(t, note));
-        }
-    }
+    f = f.add(sequencer.sound(t));
+
+    // sequencer sounds
     return f;
 }
 
 pub fn main() anyerror!void {
+    sequencer = try seq.Sequencer.init(alloc, 120, 4, 8);
+    defer sequencer.deinit();
 
-    sampler = try inst.Sampler.init(heap);
+    sampler = try inst.Sampler.init(alloc);
     defer sampler.deinit();
 
     try sampler.replaceSample(0, "./samples/808.wav");

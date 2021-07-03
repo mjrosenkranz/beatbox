@@ -1,7 +1,10 @@
 //! Keep track of time signature and play sounds I guess
 const std = @import("std");
-const Instrument = @import("instruments/instruments.zig").Instrument;
-const Note = @import("instruments/instruments.zig").Note;
+const instrument = @import("instruments/instruments.zig");
+const Instrument = instrument.Instrument;
+const Note = instrument.Note;
+const Metronome = instrument.Metronome;
+const Frame = @import("sound/sound.zig").Frame;
 
 const Track = struct {
     /// instrument on this track
@@ -20,6 +23,9 @@ pub const Sequencer = struct {
     /// TODO: make notes a vector
     notes: [1]Note,
 
+    /// metronome
+    metronome: Metronome,
+
     /// should we be playing a sound on each beat
     count_on: bool = true,
     /// beats per minute
@@ -33,24 +39,48 @@ pub const Sequencer = struct {
     beat_time: f64 = 0,
     /// total beats per measure (accounting for subbeats)
     total_beats: u8 = 0,
+    
+    allocator: *std.mem.Allocator,
 
     const Self = @This();
 
-    pub fn init(tempo: f64, beats: u8, sub_beats: u8) Self {
-        return .{
+    pub fn init(allocator: *std.mem.Allocator, tempo: f64, beats: u8, sub_beats: u8) !Self {
+        var ret = Self{
+            .allocator = allocator,
             .tempo = tempo,
             .beats = beats,
             .sub_beats = sub_beats,
             .beat_time = (60 / tempo) / @intToFloat(f64, sub_beats),
             .total_beats = beats * sub_beats,
-            .notes = [_]Note{.{.id=5}},
+            .notes = [_]Note{.{
+                .id=0,
+                // channel zero will be reserved for the metronome
+                .channel=0,
+            }},
+            .metronome = try Metronome.init(allocator),
         };
+
+        //TODO: should these be "baked in" to the program?
+        try ret.metronome.replaceSample(0, "./assets/beat.wav");
+        try ret.metronome.replaceSample(1, "./assets/measure.wav");
+
+        return ret;
     }
 
     /// accumulator for keeping time between beats
     var acc: f64 = 0;
     /// current beat in this measure
     var current: u8 = 0;
+
+    pub fn sound(self: *Self, t: f64) Frame {
+        var f: Frame = .{};
+        for (self.notes) |*note| {
+            if (note.active and note.channel == 0) {
+                f = f.add(self.metronome.parent.sound(t, note));
+            }
+        }
+        return f;
+    }
 
     /// Play sounds needed at the corresponding time
     /// for now we will metronome it out
@@ -62,23 +92,24 @@ pub const Sequencer = struct {
         while (acc >= self.beat_time) {
             // if so, we want to subtract beat time to maintain
             acc -= self.beat_time;
-            // increase the current beat and wrap over
-            current += 1;
-            if (current >= self.total_beats) {
-                current = 0;
-                //std.log.info("new measure", .{});
-            }
             // play a noise if we are a new whole beat
             if (current % self.sub_beats == 0) {
-                std.log.info("beat", .{});
+                self.notes[0].id = if (current == 0) 1 else 0;
                 self.notes[0].active = true;
                 self.notes[0].on = cpu_time;
             }
+
+            // increase the current beat and wrap over
+            current = (current + 1) % self.total_beats;
         }
     }
 
     /// Adds a track to the sequencer
     pub fn addTrack(self: *Self, inst: *Instrument) !void {
         self.tracks[0] = .{ .instrument = inst };
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.metronome.deinit();
     }
 };
