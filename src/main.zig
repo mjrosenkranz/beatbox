@@ -4,7 +4,7 @@ const fs = std.fs;
 const math = std.math;
 
 const sound = @import("sound/sound.zig");
-const keyboard = @import("keyboard.zig");
+const platform = @import("platform/platform.zig");
 const inst = @import("instruments/instruments.zig");
 const seq = @import("sequencer.zig");
 
@@ -21,7 +21,7 @@ const kbstr =
 var synth: inst.Synth = inst.Bell();
 
 const alloc = std.heap.page_allocator;
-var allNotes: [keyboard.key_states.len]inst.Note = undefined;
+var allNotes: [16]inst.Note = undefined;
 
 var so: sound.output = undefined;
 var sampler: inst.Sampler = undefined;
@@ -71,8 +71,8 @@ pub fn main() anyerror!void {
     try so.setup();
     defer so.deinit();
 
-    try keyboard.init();
-    defer keyboard.deinit();
+    try platform.backend.init();
+    defer platform.backend.deinit();
 
     // change the synth volume
     synth.volume = 0.2;
@@ -95,7 +95,7 @@ pub fn main() anyerror!void {
     var real_time: i64 = std.time.milliTimestamp();
     var elapsed: f64 = 0;
     while (!quit) {
-        if (!keyboard.update())
+        if (!platform.backend.update())
             quit = true;
 
         real_time = std.time.milliTimestamp();
@@ -104,16 +104,16 @@ pub fn main() anyerror!void {
         old_time = real_time;
 
 
-        var k: usize = 0;
-        while (k < keyboard.key_states.len) : (k+=1) {
-            if (keyboard.key_states[k] == .Pressed) {
-                allNotes[k].on = so.getTime();
-                allNotes[k].active = true;
-            }
-            if (keyboard.key_states[k] == .Released) {
-                allNotes[k].off = so.getTime();
-            }
-        }
+        //var k: usize = 0;
+        //while (k < keyboard.key_states.len) : (k+=1) {
+        //    if (keyboard.key_states[k] == .Pressed) {
+        //        allNotes[k].on = so.getTime();
+        //        allNotes[k].active = true;
+        //    }
+        //    if (keyboard.key_states[k] == .Released) {
+        //        allNotes[k].off = so.getTime();
+        //    }
+        //}
         sequencer.update(elapsed, so.getTime());
     }
 }

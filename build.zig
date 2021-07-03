@@ -14,9 +14,7 @@ pub fn build(b: *Builder) void {
     const exe = b.addExecutable("sound", "src/main.zig");
     exe.setTarget(target);
     exe.setBuildMode(mode);
-    exe.linkSystemLibrary("X11-xcb");
-    exe.linkSystemLibrary("xcb");
-    exe.linkSystemLibrary("X11");
+    exe.linkSystemLibrary("SDL2");
     exe.linkSystemLibrary("asound");
     exe.linkLibC();
     exe.install();
