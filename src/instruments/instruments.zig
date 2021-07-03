@@ -9,7 +9,10 @@ const oscillator = @import("oscillator.zig");
 pub const osc = oscillator.osc;
 
 const sampler = @import("sampler.zig");
-pub const Sampler = sampler.Sampler;
+/// A sampler holds 16 samples
+pub const Sampler = sampler.Sampler(16);
+/// A metronome has two samples, beats and measures
+pub const Metronome = sampler.Sampler(2);
 pub const Sample = sampler.Sample;
 
 

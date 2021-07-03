@@ -15,79 +15,78 @@ pub const Sample = struct {
 };
 
 /// A Sampler is an instrument which can play sounds from files
-pub const Sampler = struct {
-    /// volume of our instrument
-    volume: f32 = 1.0,
-    /// 16 samples to choose from
-    samples: [16]Sample,
-    /// allocator for storing these samples
-    allocator: *std.mem.Allocator,
+//pub const Sampler = struct {
+pub fn Sampler(N: usize) type {
+    return struct {
+        /// volume of our instrument
+        volume: f32 = 1.0,
+        /// N samples to choose from
+        samples: [N]Sample,
+        /// allocator for storing these samples
+        allocator: *std.mem.Allocator,
 
-    parent: Instrument = .{
-        .soundFn = sound,
-    },
+        parent: Instrument = .{
+            .soundFn = sound,
+        },
 
-    const Self = @This();
+        const Self = @This();
 
-    /// Create an empty sampler
-    pub fn init(allocator: *std.mem.Allocator) !Self {
-        return Self{
-            .allocator = allocator,
-            .volume = 1.0,
-            .samples = [_]Sample{
-                Sample{}, Sample{}, Sample{}, Sample{},
-                Sample{}, Sample{}, Sample{}, Sample{},
-                Sample{}, Sample{}, Sample{}, Sample{},
-                Sample{}, Sample{}, Sample{}, Sample{},
-            },
-        };
-    }
-
-    /// shutdown this sampler, deallocates the samples in memory
-    pub fn deinit(self: *Self) void {
-        for (self.samples) |sample| {
-            self.allocator.free(sample.data);
-        }
-    }
-
-    /// play a sound!
-    pub fn sound(inst: *Instrument, t: f64, n: *notes.Note) Frame {
-        const self = @fieldParentPtr(Self, "parent", inst);
-        // get the sample we should be playing based on the note id
-        const j: usize = n.id;
-
-        const sample = self.samples[j];
-
-        const lifeTime = t - n.on;
-        // index into the sample based on the time
-        const i = @floatToInt(usize, lifeTime * 44100);
-
-        if (i >= sample.data.len) {
-            n.active = false;
-            return .{};
+        /// Create an empty sampler
+        pub fn init(allocator: *std.mem.Allocator) !Self {
+            return Self{
+                .allocator = allocator,
+                .volume = 1.0,
+                .samples = [_]Sample{
+                    Sample{}
+                } ** N,
+            };
         }
 
-        return sample.data[i].times(self.volume);
-    }
+        /// shutdown this sampler, deallocates the samples in memory
+        pub fn deinit(self: *Self) void {
+            for (self.samples) |sample| {
+                self.allocator.free(sample.data);
+            }
+        }
 
-    /// Replace the sample at index i with a sample under the file given
-    pub fn replaceSample(self: *Self, i: usize, fname: []const u8) !void {
-        // attempt to open the file
-        const file = try fs.cwd().openFile(fname, fs.File.OpenFlags{ .read = true });
-        defer file.close();
+        /// play a sound!
+        pub fn sound(inst: *Instrument, t: f64, n: *notes.Note) Frame {
+            const self = @fieldParentPtr(Self, "parent", inst);
+            // get the sample we should be playing based on the note id
 
-        // out of range error
-        if (i > self.samples.len) return error.IndexOutOfRange;
-        // create the new sample (do this first so that if it fails we won't have an empty sample
-        var s = Sample{
-            .data = try waveToFrames(file, self.allocator),
-        };
-        // deallocate the sample currently residing there
-        self.allocator.free(self.samples[i].data);
-        // replace
-        self.samples[i] = s;
-    }
-};
+            const sample = self.samples[n.id];
+
+            const lifeTime = t - n.on;
+            // index into the sample based on the time
+            const i = @floatToInt(usize, lifeTime * 44100);
+
+            if (i >= sample.data.len) {
+                n.active = false;
+                return .{};
+            }
+
+            return sample.data[i].times(self.volume);
+        }
+
+        /// Replace the sample at index i with a sample under the file given
+        pub fn replaceSample(self: *Self, i: usize, fname: []const u8) !void {
+            // attempt to open the file
+            const file = try fs.cwd().openFile(fname, fs.File.OpenFlags{ .read = true });
+            defer file.close();
+
+            // out of range error
+            if (i > self.samples.len) return error.IndexOutOfRange;
+            // create the new sample (do this first so that if it fails we won't have an empty sample
+            var s = Sample{
+                .data = try waveToFrames(file, self.allocator),
+            };
+            // deallocate the sample currently residing there
+            self.allocator.free(self.samples[i].data);
+            // replace
+            self.samples[i] = s;
+        }
+    };
+}
 
 /// Header layout of a wave file
 const wave_header = packed struct {
