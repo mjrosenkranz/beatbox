@@ -16,3 +16,16 @@ pub const Sample = sampler.Sample;
 const synth = @import("synth.zig");
 pub const Synth = synth.Synth;
 pub const Bell = synth.Bell;
+
+const Frame = @import("../sound/sound.zig").Frame;
+/// instrument interface
+pub const Instrument = struct {
+    volume: f32 = 1.0,
+    soundFn: fn sound(self: *Self, t: f64, n: *Note) Frame,
+
+    const Self = @This();
+
+    pub fn sound(self: *Self, t: f64, n: *Note) Frame {
+        return self.soundFn(self, t, n);
+    }
+};

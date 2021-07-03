@@ -6,6 +6,7 @@ const fs = std.fs;
 const Frame = @import("../sound/sound.zig").Frame;
 const notes = @import("notes.zig");
 const expect = std.testing.expect;
+const Instrument = @import("instruments.zig").Instrument;
 
 /// A wrapper over a slice of frames
 /// will later contain settings for how to play the given sample
@@ -21,6 +22,10 @@ pub const Sampler = struct {
     samples: [16]Sample,
     /// allocator for storing these samples
     allocator: *std.mem.Allocator,
+
+    parent: Instrument = .{
+        .soundFn = sound,
+    },
 
     const Self = @This();
 
@@ -46,7 +51,8 @@ pub const Sampler = struct {
     }
 
     /// play a sound!
-    pub fn sound(self: Self, t: f64, n: *notes.Note) Frame {
+    pub fn sound(inst: *Instrument, t: f64, n: *notes.Note) Frame {
+        const self = @fieldParentPtr(Self, "parent", inst);
         // get the sample we should be playing based on the note id
         const j: usize = n.id;
 

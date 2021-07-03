@@ -5,6 +5,7 @@ const Frame = @import("../sound/sound.zig").Frame;
 const envelope = @import("envelope.zig");
 const notes = @import("notes.zig");
 const osc = @import("oscillator.zig");
+const Instrument = @import("instruments.zig").Instrument;
 
 /// A synthesizer instrument
 pub const Synth = struct {
@@ -16,10 +17,14 @@ pub const Synth = struct {
     /// TODO: should this be a slice or array?
     oscilators: [3]osc.Oscillator,
 
-    const Self = @This();
+    /// parent pointer to base instrument class
+    parent: Instrument = .{
+        .soundFn = sound,
+    },
 
     /// Return the amplitude of this synth for the given note at the given time
-    pub fn sound(self: Self, t: f64, n: *notes.Note) Frame {
+    pub fn sound(inst: *Instrument, t: f64, n: *notes.Note) Frame {
+        const self = @fieldParentPtr(Synth, "parent", inst);
         // build the sound
         // start with nothin
         var val: f64 = 0.0;
