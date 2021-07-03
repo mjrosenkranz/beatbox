@@ -1,15 +1,25 @@
 //! Keep track of time signature and play sounds I guess
 const std = @import("std");
+const Instrument = @import("instruments/instruments.zig").Instrument;
+const Note = @import("instruments/instruments.zig").Note;
 
-//const track = struct {
-//    /// instrument on this track
-//    /// TODO: instrument base class?
-//    instrument: *opaque{},
-//    // TODO: datatype for track content
-//    // should it be midi?
-//};
+const Track = struct {
+    /// instrument on this track
+    /// TODO: instrument base class?
+    instrument: *Instrument,
+    // TODO: datatype for track content
+    // should it be midi?
+};
 
 pub const Sequencer = struct {
+    /// Tracks for each instrument being played
+    /// TODO: make number of tracks variable
+    tracks: [1]Track = undefined,
+
+    /// all currently active notes
+    /// TODO: make notes a vector
+    notes: [1]Note,
+
     /// should we be playing a sound on each beat
     count_on: bool = true,
     /// beats per minute
@@ -33,6 +43,7 @@ pub const Sequencer = struct {
             .sub_beats = sub_beats,
             .beat_time = (60 / tempo) / @intToFloat(f64, sub_beats),
             .total_beats = beats * sub_beats,
+            .notes = [_]Note{.{.id=5}},
         };
     }
 
@@ -44,7 +55,7 @@ pub const Sequencer = struct {
     /// Play sounds needed at the corresponding time
     /// for now we will metronome it out
     /// dt is in WALL TIME (not CPU)
-    pub fn update(self: Self, dt: f64) void {
+    pub fn update(self: *Self, dt: f64, cpu_time: f64) void {
         // add to acc
         acc += dt;
         // check if enough time has passed for a new beat
@@ -55,12 +66,19 @@ pub const Sequencer = struct {
             current += 1;
             if (current >= self.total_beats) {
                 current = 0;
-                std.log.info("new measure", .{});
+                //std.log.info("new measure", .{});
             }
             // play a noise if we are a new whole beat
             if (current % self.sub_beats == 0) {
                 std.log.info("beat", .{});
+                self.notes[0].active = true;
+                self.notes[0].on = cpu_time;
             }
         }
+    }
+
+    /// Adds a track to the sequencer
+    pub fn addTrack(self: *Self, inst: *Instrument) !void {
+        self.tracks[0] = .{ .instrument = inst };
     }
 };
