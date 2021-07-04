@@ -13,6 +13,9 @@ const Instrument = @import("instruments.zig").Instrument;
 pub const Sample = struct {
     data: []Frame = &[_]Frame{},
 
+    start: usize = undefined,
+    end: usize = undefined,
+
     const Self = @This();
 
     /// reverse this sample
@@ -75,10 +78,10 @@ pub fn Sampler(N: usize) type {
             const sample = self.samples[n.id];
 
             const lifeTime = t - n.on;
-            // index into the sample based on the time
-            const i = @floatToInt(usize, lifeTime * 44100);
+            // index into the sample based on the time based on the start value
+            const i = @floatToInt(usize, lifeTime * 44100) + sample.start;
 
-            if (i >= sample.data.len) {
+            if (i >= sample.end) {
                 n.active = false;
                 return .{};
             }
@@ -95,8 +98,11 @@ pub fn Sampler(N: usize) type {
             // out of range error
             if (i > self.samples.len) return error.IndexOutOfRange;
             // create the new sample (do this first so that if it fails we won't have an empty sample
+            var data = try waveToFrames(file, self.allocator);
             var s = Sample{
-                .data = try waveToFrames(file, self.allocator),
+                .data = data,
+                .start = 0,
+                .end = data.len,
             };
             // deallocate the sample currently residing there
             self.allocator.free(self.samples[i].data);

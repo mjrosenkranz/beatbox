@@ -104,12 +104,10 @@ pub fn main() anyerror!void {
         var k: usize = 0;
         while (k < platform.backend.key_states.len) : (k+=1) {
             if (platform.backend.key_states[k] == .Pressed) {
-                std.log.info("{} pressed", .{k});
                 allNotes[k].on = so.getTime();
                 allNotes[k].active = true;
             }
             if (platform.backend.key_states[k] == .Released) {
-                std.log.info("{} released", .{k});
                 allNotes[k].off = so.getTime();
             }
         }
