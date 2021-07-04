@@ -4,8 +4,7 @@ usingnamespace @cImport({
 });
 
 var window: *SDL_Window = undefined;
-//var renderer: *SDL_Renderer = undefined;
-var surface: *SDL_Surface = undefined;
+var renderer: *SDL_Renderer = undefined;
 
 pub fn init() !void {
     // init just video (we have audio on our own)
@@ -21,7 +20,8 @@ pub fn init() !void {
           256,
           SDL_WINDOW_SHOWN
       ).?;
-    surface = SDL_GetWindowSurface(window);
+
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED).?;
 }
 
 const KeyState = enum {
@@ -69,13 +69,17 @@ pub fn update() bool {
         last_key_state[i] = pressed;
     }
 
-    _ = SDL_UpdateWindowSurface(window);
-
     return true;
 }
 
+pub fn draw() void {
+    _ = SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    _ = SDL_RenderClear(renderer);
+    _ = SDL_RenderPresent(renderer);
+}
 
 pub fn deinit() void {
+    SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
 }

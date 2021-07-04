@@ -112,5 +112,8 @@ pub fn main() anyerror!void {
             }
         }
         sequencer.update(elapsed, so.getTime());
+
+        // display stuff TODO: make an another thread?
+        platform.backend.draw();
     }
 }
