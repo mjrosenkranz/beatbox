@@ -1,6 +1,6 @@
 //! Keep track of time signature and play sounds I guess
 const std = @import("std");
-const instrument = @import("instruments/instruments.zig");
+const instrument = @import("instruments.zig");
 const Instrument = instrument.Instrument;
 const Note = instrument.Note;
 const Metronome = instrument.Metronome;
@@ -8,7 +8,6 @@ const Frame = @import("frame.zig").Frame;
 
 const Track = struct {
     /// instrument on this track
-    /// TODO: instrument base class?
     instrument: *Instrument,
     // TODO: datatype for track content
     // should it be midi?
@@ -24,21 +23,10 @@ pub const Sequencer = struct {
     notes: [1]Note,
 
     /// metronome
-    metronome: Metronome,
+    //metronome: Metronome,
 
     /// should we be playing a sound on each beat
-    metronome_on: bool = true,
-    /// beats per minute
-    tempo: f64 = 120,
-    /// beats per measure
-    beats: u8,
-    /// timing of a single beat
-    sub_beats: u8,
-
-    /// wall time for a single beat based on tempo
-    beat_time: f64 = 0,
-    /// total beats per measure (accounting for subbeats)
-    total_beats: u8 = 0,
+    //metronome_on: bool = true,
     
     allocator: *std.mem.Allocator,
 
@@ -66,11 +54,6 @@ pub const Sequencer = struct {
 
         return ret;
     }
-
-    /// accumulator for keeping time between beats
-    var acc: f64 = 0;
-    /// current beat in this measure
-    var current: u8 = 0;
 
     pub fn sound(self: *Self, t: f64) Frame {
         var f: Frame = .{};

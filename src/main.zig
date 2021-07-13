@@ -6,7 +6,7 @@ const math = std.math;
 const Frame = @import("frame.zig").Frame;
 const platform = @import("platform/platform.zig");
 const inst = @import("instruments/instruments.zig");
-const seq = @import("sequencer.zig");
+const Metronome = @import("time/time.zig").Metronome;
 
 const kbstr = 
 \\|   |   |   |   |   | |   |   |   |   | |   | |   |   |   |
@@ -24,8 +24,10 @@ const alloc = std.heap.page_allocator;
 var allNotes: [16]inst.Note = undefined;
 
 var so: platform.Output = undefined;
-var sampler: inst.Sampler = undefined;
-var sequencer: seq.Sequencer = undefined; 
+var sampler: inst.Sampler(16) = undefined;
+
+var metronome_sampler: inst.Sampler(2) = undefined;
+var metronome: Metronome = undefined;
 
 fn makeNoise(t: f64) Frame {
     var f: Frame = .{};
@@ -36,18 +38,24 @@ fn makeNoise(t: f64) Frame {
         }
     }
 
-    // sequencer sounds
-    f = f.add(sequencer.sound(t));
-
+    // play a metronome noise
+    if (metronome.note.active) {
+        f = f.add(metronome_sampler.parent.sound(t, &metronome.note));
+    }
     return f;
 }
 
 pub fn main() anyerror!void {
-    sequencer = try seq.Sequencer.init(alloc, 120, 4, 8);
-    defer sequencer.deinit();
-    sequencer.metronome_on = false;
 
-    sampler = try inst.Sampler.init(alloc);
+    so = platform.Output {
+        .frames = 256,
+        .blocks = 4,
+        .user_fn = makeNoise,
+    };
+
+
+
+    sampler = try inst.Sampler(16).init(alloc);
     defer sampler.deinit();
 
     try sampler.replaceSample(0, "./samples/808.wav");
@@ -59,11 +67,11 @@ pub fn main() anyerror!void {
     try sampler.replaceSample(6, "./samples/perc.wav");
     try sampler.replaceSample(7, "./samples/bell.wav");
 
-    so = platform.Output {
-        .frames = 256,
-        .blocks = 4,
-        .user_fn = makeNoise,
-    };
+    metronome = Metronome.init(90, 4, 4);
+    metronome_sampler = try inst.Sampler(2).init(alloc);
+    try metronome_sampler.replaceSample(0, "./assets/beat.wav");
+    try metronome_sampler.replaceSample(1, "./assets/measure.wav");
+    defer metronome_sampler.deinit();
 
     try so.setup();
     defer so.deinit();
@@ -73,6 +81,8 @@ pub fn main() anyerror!void {
 
     // change the synth volume
     synth.volume = 0.2;
+
+    metronome_sampler.volume = 1.0;
 
     // setup notes array
     var i: usize = 0;
@@ -100,6 +110,7 @@ pub fn main() anyerror!void {
         wall_time += elapsed;
         old_time = real_time;
 
+        metronome.update(elapsed, so.getTime());
 
         var k: usize = 0;
         while (k < platform.backend.key_states.len) : (k+=1) {
@@ -111,9 +122,8 @@ pub fn main() anyerror!void {
                 allNotes[k].off = so.getTime();
             }
         }
-        sequencer.update(elapsed, so.getTime());
 
         // display stuff TODO: make an another thread?
-        platform.backend.draw();
+        //platform.backend.draw();
     }
 }
