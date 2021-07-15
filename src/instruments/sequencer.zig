@@ -6,12 +6,6 @@ const Note = instrument.Note;
 const Metronome = instrument.Metronome;
 const Frame = @import("frame.zig").Frame;
 
-const Track = struct {
-    /// instrument on this track
-    instrument: *Instrument,
-    // TODO: datatype for track content
-    // should it be midi?
-};
 
 pub const Sequencer = struct {
     /// Tracks for each instrument being played

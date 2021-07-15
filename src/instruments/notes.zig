@@ -4,6 +4,7 @@ const math = @import("std").math;
 /// A note in an scale
 pub const Note = struct {
     /// the position of the notes in our scale
+    /// TODO: default to 60
     id: u8 = 0,
     /// on time
     on: f64 = 0.0,
@@ -25,3 +26,9 @@ pub fn freqFromScale(args: struct {id: u8, scale: Scale = .chromatic, octave: i8
         //else => unreachable,
     };
 }
+
+pub const NoteEvent = union(enum) {
+    /// Time the note was pressed
+    NoteOn: f64,
+    NoteOff: f64,
+};

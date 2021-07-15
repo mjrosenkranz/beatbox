@@ -3,6 +3,7 @@ pub const env = envelope.ASDR;
 
 const notes = @import("notes.zig");
 pub const Note = notes.Note;
+pub const NoteEvent = notes.NoteEvent;
 pub const Scale = notes.Scale;
 
 const oscillator = @import("oscillator.zig");
