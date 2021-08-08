@@ -1,44 +1,13 @@
 //! Backend for playing sounds on the sound card
 
 const std = @import("std");
-//const frame = @import("../frame.zig");
-
-pub const Frame = packed struct {
-    l: f32 = 0.0,
-    r: f32 = 0.0,
-
-    const Self = @This();
-
-    /// multiply both values by amount
-    pub fn times(self: Self, val: f32) callconv(.Inline) Self {
-        return .{
-            .l = self.l * val,
-            .r = self.r * val,
-        };
-    }
-
-    /// add the values of two frames together
-    pub fn add(self: Self, other: Self) callconv(.Inline) Self {
-        return .{
-            .l = self.l + other.l,
-            .r = self.r + other.r,
-        };
-    }
-
-    /// clamp the values in the frame to -1 to 1
-    pub fn clip(self: Self) callconv(.Inline) Self {
-        return .{
-            .l = math.clamp(self.l, -1, 1),
-            .r = math.clamp(self.l, -1, 1),
-        };
-    }
-};
 /// import our alsa backend
 const c = @cImport({
     @cInclude("alsa/asoundlib.h");
     @cDefine("ALSA_PCM_NEW_HW_PARAMS_API", "1");
 });
 
+//const frame = @import("../frame.zig");
 const AlsaError = error {
     FailedToOpen,
     FailedToSetHardware,
@@ -105,6 +74,7 @@ pub const Output = struct {
         validate(c.snd_pcm_hw_params_set_periods(self.handle, params, self.blocks, 0));
 
         validate(c.snd_pcm_hw_params_set_period_size_near(self.handle, params, &self.frames, &dir));
+        std.log.err("frames: {}",.{self.frames});
 
         rc = c.snd_pcm_hw_params(self.handle, params);
         if (rc < 0) {
@@ -126,32 +96,52 @@ pub const Output = struct {
         self.cpu_time = 0.0;
         const timeStep: f64 = 1.0/@intToFloat(f64, self.rate);
 
-        var f = Frame{};
+        var lbuf: [940]f32 = undefined;
+        var rbuf: [940]f32 = undefined;
 
-        var back = try self.allocator.alloc(i16, self.frames * self.channels);
+        // fill it with the first part of the sine wave
+        var i: usize = 0;
+        while (i < self.frames) : (i+=1){
+            lbuf[i] = @sin(2.0 * std.math.pi * 440.0 * @intToFloat(f32, i)/44100.0);
+            rbuf[i] = @sin(2.0 * std.math.pi * 440.0 * @intToFloat(f32, i)/44100.0);
+        }
 
         while (self.running) {
-            //var f = self.user_fn.?(self.cpu_time).clip();
-            f.l = @sin(2.0 * std.math.pi * 440.0 * @floatCast(f32, self.cpu_time));
-            f.r = @sin(2.0 * std.math.pi * 440.0 * @floatCast(f32, self.cpu_time));
-            
-            self.buffer[0 + @intCast(usize, j)*2] = @floatToInt(i16, f.l * 32767);
-            self.buffer[1 + @intCast(usize, j)*2] = @floatToInt(i16, f.r * 32767);
-            self.cpu_time += timeStep;
+            // get how many samples are available
+            var avail: c.snd_pcm_sframes_t  = c.snd_pcm_avail(self.handle);
+            if (avail < 0) {
+                std.log.err("Underrun!",.{});
+            }
+            // if we need frames then add them (later this will be popping from queue)
+            //while (avail > self.frames) {
+                std.log.err("frames needed: {}",.{avail});
+                while (i < self.frames):(i+=1) {
+                    self.buffer[0 + i*2] = @floatToInt(i16, @sin(2.0 * std.math.pi * 440.0 * self.cpu_time * 32767));
+                    self.buffer[1 + i*2] = @floatToInt(i16, @sin(2.0 * std.math.pi * 440.0 * self.cpu_time * 32767));
+                    //self.buffer[0 + i*2] = @floatToInt(i16, lbuf[i] * 32767);
+                    //self.buffer[1 + i*2] = @floatToInt(i16, rbuf[i] * 32767);
+                    self.cpu_time += timeStep;
+                }
+                j = @intCast(i32, c.snd_pcm_writei(self.handle, &self.buffer[0], self.frames));
+            //}
+
+
+
+            //std.debug.warn("avail {}\n", .{c.snd_pcm_avail(self.handle)});
 
             // If we have a buffer full of samples, write 1 period of 
             //samples to the sound card
-            j+=1;
-            if(j == self.frames){
-                j = @intCast(i32, c.snd_pcm_writei(self.handle, &self.buffer[0], self.frames));
+            //j+=1;
+            ////if(j == self.frames){
+            //    j = @intCast(i32, c.snd_pcm_writei(self.handle, &self.buffer[0], self.frames));
 
-                // Check for under runs
-                if (j < 0){
-                    _ = c.snd_pcm_prepare(self.handle);
-                    std.log.err("underrun", .{});
-                }
-                j = 0;
-            }
+            //    // Check for under runs
+            //    if (j < 0){
+            //        _ = c.snd_pcm_prepare(self.handle);
+            //        std.log.err("underrun", .{});
+            //    }
+            //    j = 0;
+            ////}
         }
     }
 
@@ -169,8 +159,16 @@ pub const Output = struct {
     }
 };
 
+const Block = struct {
+    lbuf: [256 * 4]f32 = undefined,
+    rbuf: [256 * 4]f32 = undefined,
+};
+
 test "run" {
-    var o = Output{.allocator = std.testing.allocator};
+    var o = Output{
+        .allocator = std.testing.allocator,
+    };
+
     try o.setup();
     o.loop();
     o.deinit();

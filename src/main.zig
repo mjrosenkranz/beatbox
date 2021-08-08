@@ -61,7 +61,8 @@ pub fn main() anyerror!void {
     so = platform.Output {
         .frames = 256,
         .blocks = 4,
-        .user_fn = makeNoise,
+        .allocator= alloc,
+        //.user_fn = makeNoise,
     };
 
 
