@@ -1,7 +1,38 @@
 //! Backend for playing sounds on the sound card
 
 const std = @import("std");
-const frame = @import("../frame.zig");
+//const frame = @import("../frame.zig");
+
+pub const Frame = packed struct {
+    l: f32 = 0.0,
+    r: f32 = 0.0,
+
+    const Self = @This();
+
+    /// multiply both values by amount
+    pub fn times(self: Self, val: f32) callconv(.Inline) Self {
+        return .{
+            .l = self.l * val,
+            .r = self.r * val,
+        };
+    }
+
+    /// add the values of two frames together
+    pub fn add(self: Self, other: Self) callconv(.Inline) Self {
+        return .{
+            .l = self.l + other.l,
+            .r = self.r + other.r,
+        };
+    }
+
+    /// clamp the values in the frame to -1 to 1
+    pub fn clip(self: Self) callconv(.Inline) Self {
+        return .{
+            .l = math.clamp(self.l, -1, 1),
+            .r = math.clamp(self.l, -1, 1),
+        };
+    }
+};
 /// import our alsa backend
 const c = @cImport({
     @cInclude("alsa/asoundlib.h");
@@ -12,8 +43,6 @@ const AlsaError = error {
     FailedToOpen,
     FailedToSetHardware,
 };
-
-const alloc = std.heap.page_allocator;
 
 // samples per block 256
 // blocks per queue 8
@@ -31,13 +60,15 @@ pub const Output = struct {
     /// number of blocks we will use
     blocks: u8 = 4,
     /// callback function for creating sound
-    user_fn: ?fn(f64) frame.Frame,
+    //user_fn: ?fn(f64) Frame,
     /// cpu time
     cpu_time: f64 = 0.0,
     /// thread the main ouput loop will run in
     thread: *std.Thread = undefined,
     /// are we still running this app
     running: bool = true,
+
+    allocator: *std.mem.Allocator,
 
     const Self = @This();
 
@@ -81,9 +112,9 @@ pub const Output = struct {
             return AlsaError.FailedToSetHardware;
         }
 
-        self.buffer = try alloc.alloc(i16, self.frames * self.channels);
+        self.buffer = try self.allocator.alloc(i16, self.frames * self.channels);
 
-        self.thread = try std.Thread.spawn(loop, self);
+        //self.thread = try std.Thread.spawn(loop, self);
     }
 
     fn loop(self: *Self) void {
@@ -95,8 +126,15 @@ pub const Output = struct {
         self.cpu_time = 0.0;
         const timeStep: f64 = 1.0/@intToFloat(f64, self.rate);
 
+        var f = Frame{};
+
+        var back = try self.allocator.alloc(i16, self.frames * self.channels);
+
         while (self.running) {
-            var f = self.user_fn.?(self.cpu_time).clip();
+            //var f = self.user_fn.?(self.cpu_time).clip();
+            f.l = @sin(2.0 * std.math.pi * 440.0 * @floatCast(f32, self.cpu_time));
+            f.r = @sin(2.0 * std.math.pi * 440.0 * @floatCast(f32, self.cpu_time));
+            
             self.buffer[0 + @intCast(usize, j)*2] = @floatToInt(i16, f.l * 32767);
             self.buffer[1 + @intCast(usize, j)*2] = @floatToInt(i16, f.r * 32767);
             self.cpu_time += timeStep;
@@ -124,9 +162,16 @@ pub const Output = struct {
     pub fn deinit(self: *Self) void {
         self.running = false;
         self.thread.wait();
-        alloc.free(self.buffer);
+        self.allocator.free(self.buffer);
         _ = c.snd_pcm_drain(self.handle);
         _ = c.snd_pcm_close(self.handle);
 
     }
 };
+
+test "run" {
+    var o = Output{.allocator = std.testing.allocator};
+    try o.setup();
+    o.loop();
+    o.deinit();
+}
