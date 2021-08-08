@@ -6,7 +6,6 @@ const math = std.math;
 const Frame = @import("frame.zig").Frame;
 const platform = @import("platform/platform.zig");
 const inst = @import("instruments/instruments.zig");
-const MidiTrack = @import("time/time.zig").track.MidiTrack;
 const Metronome = @import("time/time.zig").Metronome;
 
 const kbstr = 
@@ -30,8 +29,6 @@ var sampler: inst.Sampler(16) = undefined;
 var metronome_sampler: inst.Sampler(2) = undefined;
 var metronome: Metronome = undefined;
 
-var track1: MidiTrack = undefined;
-
 fn makeNoise(t: f64) Frame {
     var f: Frame = .{};
     // live notes
@@ -42,12 +39,6 @@ fn makeNoise(t: f64) Frame {
     }
 
     
-    for (track1.notes) |*note| {
-        if (note.active) {
-            f = f.add(synth.parent.sound(t, note));
-        }
-    }
-
     // play a metronome noise
     if (metronome.note.active) {
         f = f.add(metronome_sampler.parent.sound(t, &metronome.note));
@@ -89,7 +80,6 @@ pub fn main() anyerror!void {
     try platform.backend.init();
     defer platform.backend.deinit();
 
-    track1 = MidiTrack.init();
 
     // change the synth volume
     synth.volume = 0.2;
@@ -123,7 +113,6 @@ pub fn main() anyerror!void {
         old_time = real_time;
 
         metronome.update(elapsed, so.getTime());
-        track1.update(so.getTime());
 
         var k: usize = 0;
         while (k < platform.backend.key_states.len) : (k+=1) {
